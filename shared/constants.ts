@@ -34,13 +34,9 @@ export const STYLE_PREFERENCES = {
 } as const;
 
 export const API_ENDPOINTS = {
-  ping: '/api/ping',
-  aiStylist: {
-    generateOutfits: '/api/ai-stylist/generate-outfits',
-    stylingAdvice: '/api/ai-stylist/styling-advice',
-    analyzeItem: '/api/ai-stylist/analyze-item',
-    wardrobeAnalysis: '/api/ai-stylist/wardrobe-analysis'
-  }
+  ping: '/api',
+  generateOutfits: '/api/generate-outfits',
+  stylingAdvice: '/api/styling-advice'
 } as const;
 
 export const GEMINI_CONFIG = {
