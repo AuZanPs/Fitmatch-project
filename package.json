@@ -26,7 +26,9 @@
     "@vercel/node": "^5.3.12",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "vite": "^7.1.2",
+    "typescript": "^5.9.2"
   },
   "devDependencies": {
     "@hookform/resolvers": "^5.2.1",
@@ -96,9 +98,7 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.176.0",
     "tsx": "^4.20.3",
-    "typescript": "^5.9.2",
     "vaul": "^1.1.2",
-    "vite": "^7.1.2",
     "vitest": "^3.2.4"
   }
 }
