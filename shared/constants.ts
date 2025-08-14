@@ -40,7 +40,7 @@ export const API_ENDPOINTS = {
 } as const;
 
 export const GEMINI_CONFIG = {
-  model: 'gemini-1.5-flash',
+  model: 'gemini-2.5-flash-latest',
   maxRetries: 2,
   timeout: 30000 // 30 seconds
 } as const;

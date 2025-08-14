@@ -25,7 +25,7 @@ const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
 // Gemini models (only initialize if API key is available) - Using latest 2.5 Flash model with enhanced config
 const visionModel = genAI?.getGenerativeModel({ 
-  model: 'gemini-2.5-flash',
+  model: 'gemini-2.5-flash-latest',
   generationConfig: {
     temperature: 0.7,
     topP: 0.8,
@@ -34,7 +34,7 @@ const visionModel = genAI?.getGenerativeModel({
   }
 });
 const textModel = genAI?.getGenerativeModel({ 
-  model: 'gemini-2.5-flash',
+  model: 'gemini-2.5-flash-latest',
   generationConfig: {
     temperature: 0.8,
     topP: 0.9,
@@ -45,12 +45,12 @@ const textModel = genAI?.getGenerativeModel({
 
 // Fast model specifically for outfit generation with optimized settings
 const fastOutfitModel = genAI?.getGenerativeModel({ 
-  model: 'gemini-2.5-flash',
+  model: 'gemini-2.5-flash-latest',
   generationConfig: {
     temperature: 0.3, // Lower temperature for more consistent, faster responses
     topP: 0.7, // Reduced for faster token selection
     topK: 20, // Smaller candidate set for speed
-    maxOutputTokens: 1024, // Much smaller output limit for faster generation
+    maxOutputTokens: 2048, // Balanced output limit for faster generation
   }
 });
 
