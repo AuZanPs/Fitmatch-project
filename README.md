@@ -36,8 +36,8 @@ FitMatch is an intelligent wardrobe management and styling application that uses
 
 ### 1. Clone and Install
 ```bash
-git clone https://github.com/yourusername/fitMatch.git
-cd fitMatch
+git clone https://github.com/AuZanPs/Fitmatch-project.git
+cd Fitmatch-project
 npm install
 ```
 
@@ -164,17 +164,37 @@ Visit `http://localhost:8080` to start using FitMatch!
 
 ## Deployment
 
-### Vercel Deployment (Recommended)
+### GitHub + Vercel Deployment (Recommended)
 
-#### Quick Deploy
+This project is optimized for deployment using GitHub and Vercel. Follow these steps:
+
+#### 1. Fork or Clone
+If you haven't already, clone this repository:
+```bash
+git clone https://github.com/AuZanPs/Fitmatch-project.git
+cd Fitmatch-project
+```
+
+#### 2. Deploy to Vercel
+There are two ways to deploy:
+
+**Option A: Direct GitHub Integration (Recommended)**
+1. Go to [vercel.com](https://vercel.com) and sign up/login
+2. Click "New Project" 
+3. Import your GitHub repository
+4. Vercel will automatically detect the configuration
+5. Add environment variables (see below)
+6. Deploy!
+
+**Option B: Vercel CLI**
 ```bash
 npm i -g vercel
 vercel login
-vercel
+vercel --prod
 ```
 
-#### Environment Variables in Vercel
-Add these in your Vercel dashboard (Settings → Environment Variables):
+#### 3. Environment Variables in Vercel
+In your Vercel dashboard (Settings → Environment Variables), add:
 
 | Variable | Value | Environment |
 |----------|-------|-------------|
@@ -183,16 +203,25 @@ Add these in your Vercel dashboard (Settings → Environment Variables):
 | `GEMINI_API_KEY` | Your Gemini API key | All |
 | `NODE_ENV` | `production` | Production |
 
-#### Automatic Features
-- HTTPS with automatic SSL/TLS certificates
-- Security headers auto-configured via `vercel.json`
-- CORS configured for Vercel domains
-- CDN and edge optimization
+#### 4. Automatic GitHub Integration
+- Vercel automatically deploys when you push to your main branch
+- Preview deployments for pull requests
+- Automatic domain assignment (yourproject.vercel.app)
 
-### Other Platforms
-- Netlify: Supported with build configuration
-- Railway: Compatible with Express backend
-- DigitalOcean: App Platform ready
+#### Why GitHub + Vercel?
+- **Zero Configuration**: Vercel detects the setup automatically
+- **Git Integration**: Automatic deployments on push
+- **Free Tier**: Perfect for personal projects
+- **HTTPS**: Automatic SSL certificates
+- **CDN**: Global edge network
+- **Security**: Production-ready security headers
+
+### Other Hosting Options
+- **Netlify**: Compatible with included configuration
+- **Railway**: Full-stack deployment with PostgreSQL
+- **DigitalOcean**: App Platform ready with Docker support
+
+For detailed deployment instructions for other platforms, see `DEPLOYMENT.md`.
 
 ## Performance Metrics
 
