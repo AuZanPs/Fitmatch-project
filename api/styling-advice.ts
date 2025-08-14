@@ -125,9 +125,19 @@ Respond as a knowledgeable, friendly personal stylist who truly understands fash
 
   } catch (error: any) {
     console.error('Styling advice error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      geminiConfigured: !!process.env.GEMINI_API_KEY,
+      keyLength: process.env.GEMINI_API_KEY?.length || 0
+    });
     res.status(500).json({ 
       error: 'Failed to generate styling advice',
-      message: 'Our AI stylist is temporarily unavailable. Please try again in a few moments.'
+      message: 'Our AI stylist is temporarily unavailable. Please try again in a few moments.',
+      debug: process.env.NODE_ENV === 'development' ? {
+        errorMessage: error.message,
+        geminiConfigured: !!process.env.GEMINI_API_KEY
+      } : undefined
     });
   }
 }
