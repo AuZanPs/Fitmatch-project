@@ -165,7 +165,7 @@ export default function AIStylist() {
     }, 30000); // 30 second timeout
     
     try {
-      const response = await fetch('/api/ai-stylist/generate-outfits', {
+      const response = await fetch('/api/generate-outfits', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -219,7 +219,7 @@ export default function AIStylist() {
     setIsTyping(true);
 
     try {
-      const response = await fetch('/api/ai-stylist/styling-advice', {
+      const response = await fetch('/api/styling-advice', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -279,7 +279,7 @@ export default function AIStylist() {
     }, 150); // Faster updates for smoother animation
 
     try {
-      const response = await fetch('/api/ai-stylist/wardrobe-analysis', {
+      const response = await fetch('/api/wardrobe-analysis', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
