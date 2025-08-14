@@ -46,9 +46,45 @@ interface StylePreferences {
 }
 
 interface WardrobeAnalysis {
+  overall_score: number;
+  overall_assessment: string;
+  strengths: string[];
   gaps: string[];
-  recommendations: string[];
-  priority_items: string[];
+  color_analysis: {
+    dominant_colors: string[];
+    missing_colors: string[];
+    harmony_score: number;
+    recommendations: string;
+  };
+  style_consistency: {
+    score: number;
+    description: string;
+  };
+  versatility: {
+    score: number;
+    possible_outfits: number;
+    description: string;
+  };
+  seasonal_coverage: {
+    spring: number;
+    summer: number;
+    fall: number;
+    winter: number;
+    recommendations: string;
+  };
+  investment_priorities: Array<{
+    item: string;
+    reason: string;
+    impact: string;
+    priority: number;
+  }>;
+  organization_tips: string[];
+  styling_opportunities: Array<{
+    outfit_name: string;
+    items: string[];
+    occasion: string;
+    styling_notes: string;
+  }>;
 }
 
 export default function AIStylist() {
@@ -931,45 +967,48 @@ export default function AIStylist() {
                     )}
 
                     {/* Shopping Recommendations */}
-                    {wardrobeAnalysis.recommendations.length > 0 && (
+                    {wardrobeAnalysis.investment_priorities.length > 0 && (
                       <div className="bg-gray-50 border-l-4 border-black p-4 sm:p-6 rounded-r-lg">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-4">
                           <h4 className="font-playfair text-lg sm:text-xl font-bold text-black flex items-center gap-2">
                             <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600 flex-shrink-0" />
-                            <span>Shopping Recommendations</span>
+                            <span>Investment Priorities</span>
                           </h4>
                           <span className="bg-gray-200 text-black text-xs sm:text-sm px-2 py-1 rounded-full self-start sm:self-auto">
-                            {wardrobeAnalysis.recommendations.length} recommendations
+                            {wardrobeAnalysis.investment_priorities.length} recommendations
                           </span>
                         </div>
                         <ul className="space-y-3">
-                          {wardrobeAnalysis.recommendations.map((rec, index) => (
+                          {wardrobeAnalysis.investment_priorities.map((item, index) => (
                             <li key={index} className="font-montserrat text-sm sm:text-base text-gray-800 flex items-start gap-3">
                               <span className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></span>
-                              {rec}
+                              <div>
+                                <strong>{item.item}</strong> - {item.reason}
+                                <div className="text-xs text-gray-600 mt-1">Impact: {item.impact}</div>
+                              </div>
                             </li>
                           ))}
                         </ul>
                       </div>
                     )}
 
-                    {/* Priority Items */}
-                    {wardrobeAnalysis.priority_items.length > 0 && (
+                    {/* Organization Tips */}
+                    {wardrobeAnalysis.organization_tips.length > 0 && (
                       <div className="bg-gray-50 border-l-4 border-black p-4 sm:p-6 rounded-r-lg">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-4">
                           <h4 className="font-playfair text-lg sm:text-xl font-bold text-black flex items-center gap-2">
                             <Star className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 flex-shrink-0" />
-                            <span>Priority Items to Add</span>
+                            <span>Organization Tips</span>
                           </h4>
                           <span className="bg-gray-200 text-black text-xs sm:text-sm px-2 py-1 rounded-full self-start sm:self-auto">
-                            {wardrobeAnalysis.priority_items.length} items
+                            {wardrobeAnalysis.organization_tips.length} tips
                           </span>
                         </div>
                         <ul className="space-y-3">
-                          {wardrobeAnalysis.priority_items.map((item, index) => (
+                          {wardrobeAnalysis.organization_tips.map((tip, index) => (
                             <li key={index} className="font-montserrat text-sm sm:text-base text-gray-800 flex items-start gap-3">
                               <span className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></span>
-                              {item}
+                              {tip}
                             </li>
                           ))}
                         </ul>

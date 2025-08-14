@@ -56,8 +56,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const seasonalItems = { spring: 0, summer: 0, fall: 0, winter: 0, year_round: 0 };
 
     wardrobeItems.forEach(item => {
-      // Category distribution
-      const category = item.category || 'uncategorized';
+      // Category distribution - handle both string and object formats
+      const category = typeof item.category === 'string' ? item.category : item.category?.name || 'uncategorized';
       itemsByCategory[category] = (itemsByCategory[category] || 0) + 1;
 
       // Color distribution
@@ -70,22 +70,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Basic seasonal categorization
-      if (item.category) {
-        const cat = item.category.toLowerCase();
-        if (cat.includes('coat') || cat.includes('sweater') || cat.includes('boot')) {
-          seasonalItems.winter++;
-        } else if (cat.includes('shorts') || cat.includes('tank') || cat.includes('sandal')) {
-          seasonalItems.summer++;
-        } else {
-          seasonalItems.year_round++;
-        }
+      const cat = category.toLowerCase();
+      if (cat.includes('coat') || cat.includes('sweater') || cat.includes('boot')) {
+        seasonalItems.winter++;
+      } else if (cat.includes('shorts') || cat.includes('tank') || cat.includes('sandal')) {
+        seasonalItems.summer++;
+      } else {
+        seasonalItems.year_round++;
       }
     });
 
     // Build detailed wardrobe inventory for AI
-    const wardrobeInventory = wardrobeItems.map((item, index) => 
-      `${index + 1}. ${item.category || 'Item'}: ${item.color || 'Color not specified'} ${item.brand || 'No brand'} ${item.style ? '(' + item.style + ')' : ''}`
-    ).join('\n');
+    const wardrobeInventory = wardrobeItems.map((item, index) => {
+      const category = typeof item.category === 'string' ? item.category : item.category?.name || 'Item';
+      const tags = item.clothing_item_style_tags?.map(tag => tag.style_tag?.name || tag.name).join(', ') || '';
+      return `${index + 1}. ${category}: ${item.color || 'Color not specified'} ${item.brand || 'No brand'} ${tags ? '(' + tags + ')' : ''}`;
+    }).join('\n');
 
     // Build user context
     let userContext = '';
@@ -345,9 +345,25 @@ Return as JSON in this exact structure:
 
   } catch (error: any) {
     console.error('Wardrobe analysis error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      geminiConfigured: !!process.env.GEMINI_API_KEY,
+      keyLength: process.env.GEMINI_API_KEY?.length || 0,
+      requestBody: JSON.stringify(req.body).substring(0, 500),
+      wardrobeItemsCount: req.body?.wardrobe?.length || req.body?.items?.length || 0
+    });
+    
     res.status(500).json({ 
       error: 'Failed to analyze wardrobe',
-      message: 'Our AI stylist is temporarily unavailable. Please try again in a few moments.'
+      message: 'Our AI stylist is temporarily unavailable. Please try again in a few moments.',
+      debug: process.env.NODE_ENV === 'development' ? {
+        errorMessage: error.message,
+        errorName: error.name,
+        geminiConfigured: !!process.env.GEMINI_API_KEY,
+        itemsReceived: req.body?.wardrobe?.length || req.body?.items?.length || 0
+      } : undefined
     });
   }
 }
