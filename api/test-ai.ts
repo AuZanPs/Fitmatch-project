@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('GoogleGenerativeAI initialized');
 
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.5-flash-latest'
+      model: 'gemini-1.5-flash-latest'  // Use the stable version
     });
     console.log('Model created');
 
