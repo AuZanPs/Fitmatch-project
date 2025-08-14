@@ -1,10 +1,5 @@
 {
   "version": 2,
-  "functions": {
-    "dist/server/node-build.mjs": {
-      "maxDuration": 30
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",
@@ -31,14 +26,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/dist/server/node-build.mjs"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/dist/spa/index.html"
+      "destination": "/api"
     }
-  ],
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist/spa",
-  "installCommand": "npm install"
+  ]
 }
