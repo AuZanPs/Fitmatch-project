@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to FitMatch! This document provides guidelines for contributing to the project.
 
-## 🤝 How to Contribute
+## How to Contribute
 
 ### 1. Fork and Clone
 ```bash
@@ -59,7 +59,7 @@ npm run dev
 3. Provide a clear description of your changes
 4. Link any related issues
 
-## 📝 Development Guidelines
+## Development Guidelines
 
 ### Code Style
 - Use TypeScript for all new code
@@ -85,7 +85,7 @@ npm run dev
 - Implement proper memoization
 - Avoid unnecessary re-renders
 
-## 🐛 Bug Reports
+## Bug Reports
 
 When reporting bugs, please include:
 - Clear description of the issue
@@ -94,7 +94,7 @@ When reporting bugs, please include:
 - Environment details (OS, browser, Node.js version)
 - Console errors or screenshots
 
-## 💡 Feature Requests
+## Feature Requests
 
 For feature requests:
 - Explain the problem you're trying to solve
@@ -102,7 +102,7 @@ For feature requests:
 - Consider backwards compatibility
 - Think about the impact on performance and security
 
-## 🔄 Pull Request Process
+## Pull Request Process
 
 1. **Small, focused changes**: Keep PRs focused on a single feature or fix
 2. **Clear description**: Explain what changes you made and why
@@ -119,7 +119,7 @@ For feature requests:
 - [ ] Performance impact considered
 - [ ] Security implications reviewed
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 ├── client/              # React frontend
@@ -135,7 +135,7 @@ For feature requests:
 └── public/             # Static assets
 ```
 
-## 🧪 Testing
+## Testing
 
 While we don't have extensive automated tests yet, please:
 - Test your changes thoroughly in the browser
@@ -144,7 +144,7 @@ While we don't have extensive automated tests yet, please:
 - Check AI features function properly
 - Ensure error cases are handled gracefully
 
-## 📚 Resources
+## Resources
 
 - [React Documentation](https://react.dev/)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)
@@ -152,15 +152,15 @@ While we don't have extensive automated tests yet, please:
 - [Google Gemini API](https://ai.google.dev/docs)
 - [TailwindCSS Docs](https://tailwindcss.com/docs)
 
-## ❓ Questions?
+## Questions?
 
 If you have questions about contributing:
 - Check existing issues and discussions
 - Open a new issue with the `question` label
 - Be specific about what you're trying to accomplish
 
-## 🙏 Recognition
+## Recognition
 
 Contributors will be recognized in the project. All contributions, no matter how small, are appreciated!
 
-Thank you for helping make FitMatch better! 🎉
+Thank you for helping make FitMatch better!
