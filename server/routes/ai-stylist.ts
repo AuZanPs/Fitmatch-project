@@ -76,7 +76,6 @@ export const handleGenerateOutfits: RequestHandler = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error generating AI outfits:', error);
     res.status(500).json({ 
       error: 'Failed to generate outfit suggestions',
       message: 'Our AI stylist is temporarily unavailable. Please try again in a few moments.'
@@ -105,7 +104,6 @@ export const handleStylingAdvice: RequestHandler = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error in handleStylingAdvice route:', error);
     res.status(500).json({ 
       error: 'Failed to get styling advice',
       message: 'Our AI stylist is temporarily unavailable. Please try again in a few moments.'
@@ -130,7 +128,6 @@ export const handleAnalyzeItem: RequestHandler = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error analyzing item:', error);
     res.status(500).json({ 
       error: 'Failed to analyze item',
       message: 'Our AI analysis is temporarily unavailable. Please try again in a few moments.'
@@ -155,7 +152,6 @@ export const handleWardrobeAnalysis: RequestHandler = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error analyzing wardrobe:', error);
     res.status(500).json({ 
       error: 'Failed to analyze wardrobe',
       message: 'Our AI analysis is temporarily unavailable. Please try again in a few moments.'

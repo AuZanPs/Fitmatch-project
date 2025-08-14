@@ -194,7 +194,6 @@ Return as JSON in this exact structure:
     });
 
   } catch (error: any) {
-    console.error('Item analysis error:', error);
     res.status(500).json({ 
       error: 'Failed to analyze item',
       message: 'Our AI stylist is temporarily unavailable. Please try again in a few moments.'
@@ -270,8 +269,6 @@ function parseAnalysisResponse(text: string, itemData: any) {
     };
 
   } catch (parseError) {
-    console.error('JSON parsing failed:', parseError);
-    
     // Fallback analysis structure
     return {
       item_assessment: {
@@ -323,7 +320,6 @@ async function fetchImageAsBase64(imageUrl: string): Promise<string> {
     const base64 = Buffer.from(arrayBuffer).toString('base64');
     return base64;
   } catch (error) {
-    console.error('Error fetching image:', error);
     throw new Error('Failed to fetch image for analysis');
   }
 }

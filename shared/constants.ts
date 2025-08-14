@@ -32,15 +32,3 @@ export const STYLE_PREFERENCES = {
   weather: ['hot', 'mild', 'cold', 'rainy'] as const,
   styles: ['comfortable', 'elegant', 'edgy', 'romantic', 'minimalist', 'bohemian', 'classic'] as const
 } as const;
-
-export const API_ENDPOINTS = {
-  ping: '/api',
-  generateOutfits: '/api/generate-outfits',
-  stylingAdvice: '/api/styling-advice'
-} as const;
-
-export const GEMINI_CONFIG = {
-  model: 'gemini-1.5-flash-latest',
-  maxRetries: 2,
-  timeout: 30000 // 30 seconds
-} as const;

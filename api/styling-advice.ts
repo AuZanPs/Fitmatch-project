@@ -42,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Use the stable Gemini model with settings optimized for conversational styling advice
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash-latest',  // Use stable version instead of 2.5
+      model: 'gemini-1.5-flash',  // Use stable version instead of latest
       generationConfig: {
         temperature: 0.8, // Higher temperature for more creative and conversational responses
         topP: 0.9,
@@ -130,13 +130,6 @@ Respond as a knowledgeable, friendly personal stylist who truly understands fash
     });
 
   } catch (error: any) {
-    console.error('Styling advice error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      geminiConfigured: !!process.env.GEMINI_API_KEY,
-      keyLength: process.env.GEMINI_API_KEY?.length || 0
-    });
     res.status(500).json({ 
       error: 'Failed to generate styling advice',
       message: 'Our AI stylist is temporarily unavailable. Please try again in a few moments.',

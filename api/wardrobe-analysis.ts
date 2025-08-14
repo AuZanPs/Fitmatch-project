@@ -40,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash-latest',
+      model: 'gemini-1.5-flash',
       generationConfig: {
         temperature: 0.4,
         topP: 0.8,
@@ -179,91 +179,135 @@ Return as JSON in this exact structure:
   ]
 }`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // Retry mechanism for Gemini API
+    let result;
+    let text;
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        result = await model.generateContent(prompt);
+        const response = await result.response;
+        text = response.text();
+        break; // Success, exit retry loop
+      } catch (error: any) {
+        retryCount++;
+        
+        if (error.status === 503 || error.message?.includes('overloaded')) {
+          if (retryCount < maxRetries) {
+            // Exponential backoff: wait 1s, 2s, 4s
+            const waitTime = Math.pow(2, retryCount - 1) * 1000;
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          } else {
+            // All retries failed, use fallback
+            text = null;
+            break;
+          }
+        } else {
+          // Non-503 error, don't retry
+          throw error;
+        }
+      }
+    }
 
     // Parse and validate the analysis
     let analysis;
     try {
-      const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-      
-      if (jsonMatch) {
-        analysis = JSON.parse(jsonMatch[0]);
+      if (text) {
+        const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+        
+        if (jsonMatch) {
+          analysis = JSON.parse(jsonMatch[0]);
+        } else {
+          analysis = JSON.parse(cleanText);
+        }
       } else {
-        analysis = JSON.parse(cleanText);
+        // Use fallback analysis when AI is unavailable
+        analysis = null;
       }
 
       // Validate and ensure all required fields exist
       analysis = {
-        overall_score: Math.min(100, Math.max(0, analysis.overall_score || 75)),
-        overall_assessment: analysis.overall_assessment || 'Your wardrobe shows good potential with room for strategic improvements.',
-        strengths: Array.isArray(analysis.strengths) ? analysis.strengths : [
-          'Good variety of basic pieces',
-          'Decent color coordination',
-          'Functional everyday items'
+        overall_score: Math.min(100, Math.max(0, analysis?.overall_score || 75)),
+        overall_assessment: analysis?.overall_assessment || 'Your wardrobe shows good potential with room for strategic improvements. (Analysis generated with limited AI availability)',
+        strengths: Array.isArray(analysis?.strengths) ? analysis.strengths : [
+          `Good variety with ${wardrobeItems.length} items across ${Object.keys(itemsByCategory).length} categories`,
+          `Diverse color range with ${Object.keys(colorDistribution).length} different colors`,
+          'Practical everyday pieces that can work for multiple occasions'
         ],
-        gaps: Array.isArray(analysis.gaps) ? analysis.gaps : [
-          'Missing versatile statement pieces',
-          'Limited formal options',
-          'Could use more layering pieces'
+        gaps: Array.isArray(analysis?.gaps) ? analysis.gaps : [
+          'Could benefit from more versatile statement pieces',
+          'Consider adding transitional seasonal items',
+          'May need more formal or professional options'
         ],
         color_analysis: {
-          dominant_colors: analysis.color_analysis?.dominant_colors || Object.keys(colorDistribution).slice(0, 3),
-          missing_colors: analysis.color_analysis?.missing_colors || ['navy', 'white', 'beige'],
-          harmony_score: analysis.color_analysis?.harmony_score || 70,
-          recommendations: analysis.color_analysis?.recommendations || 'Focus on building a cohesive color palette with neutral bases.'
+          dominant_colors: analysis?.color_analysis?.dominant_colors || Object.keys(colorDistribution).slice(0, 3),
+          missing_colors: analysis?.color_analysis?.missing_colors || ['navy', 'white', 'neutral beige'],
+          harmony_score: analysis?.color_analysis?.harmony_score || 75,
+          recommendations: analysis?.color_analysis?.recommendations || 'Focus on building a cohesive color story with your existing pieces.'
         },
         style_consistency: {
-          score: analysis.style_consistency?.score || 75,
-          description: analysis.style_consistency?.description || 'Your wardrobe shows developing style direction with room for refinement.'
+          score: analysis?.style_consistency?.score || 75,
+          description: analysis?.style_consistency?.description || 'Your wardrobe shows developing personal style with good foundation pieces.'
         },
         versatility: {
-          score: analysis.versatility?.score || 70,
-          possible_outfits: analysis.versatility?.possible_outfits || Math.floor(wardrobeItems.length * 1.5),
-          description: analysis.versatility?.description || 'Good mixing and matching potential with strategic additions.'
+          score: analysis?.versatility?.score || 70,
+          possible_outfits: analysis?.versatility?.possible_outfits || Math.floor(wardrobeItems.length * 1.8),
+          description: analysis?.versatility?.description || 'Good potential for creative combinations with your current pieces.'
         },
         seasonal_coverage: {
-          spring: analysis.seasonal_coverage?.spring || 70,
-          summer: analysis.seasonal_coverage?.summer || 75,
-          fall: analysis.seasonal_coverage?.fall || 65,
-          winter: analysis.seasonal_coverage?.winter || 60,
-          recommendations: analysis.seasonal_coverage?.recommendations || 'Consider adding transitional pieces for better year-round coverage.'
+          spring: analysis?.seasonal_coverage?.spring || 75,
+          summer: analysis?.seasonal_coverage?.summer || 80,
+          fall: analysis?.seasonal_coverage?.fall || 70,
+          winter: analysis?.seasonal_coverage?.winter || 65,
+          recommendations: analysis?.seasonal_coverage?.recommendations || 'Consider adding layering pieces for better year-round adaptability.'
         },
-        investment_priorities: Array.isArray(analysis.investment_priorities) ? analysis.investment_priorities : [
+        investment_priorities: Array.isArray(analysis?.investment_priorities) ? analysis.investment_priorities : [
           {
-            item: 'Quality blazer',
-            reason: 'Elevates any outfit from casual to business casual',
-            impact: 'Dramatically increases outfit versatility',
+            item: 'Versatile blazer or structured cardigan',
+            reason: 'Instantly elevates casual pieces and adds polish',
+            impact: 'Dramatically increases styling options and occasion appropriateness',
             priority: 1
           },
           {
-            item: 'Classic white button-down',
-            reason: 'Essential building block for many outfits',
-            impact: 'Adds polish and professional options',
+            item: 'Quality basic tees or fitted blouses',
+            reason: 'Essential foundation pieces for layering and mix-and-match',
+            impact: 'Increases outfit frequency and professional versatility',
             priority: 2
+          },
+          {
+            item: 'Comfortable yet polished shoes',
+            reason: 'Complete outfits and provide style versatility',
+            impact: 'Enhances overall look and occasion appropriateness',
+            priority: 3
           }
         ],
-        organization_tips: Array.isArray(analysis.organization_tips) ? analysis.organization_tips : [
-          'Group similar items together',
-          'Keep frequently worn pieces easily accessible',
-          'Rotate seasonal items'
+        organization_tips: Array.isArray(analysis?.organization_tips) ? analysis.organization_tips : [
+          'Organize by category and color for easy coordination',
+          'Keep most-worn items easily accessible',
+          'Consider seasonal rotation system for space efficiency',
+          'Group complete outfit possibilities together'
         ],
-        styling_opportunities: Array.isArray(analysis.styling_opportunities) ? analysis.styling_opportunities : [
+        styling_opportunities: Array.isArray(analysis?.styling_opportunities) ? analysis.styling_opportunities : [
           {
-            outfit_name: 'Casual Weekend',
-            items: wardrobeItems.slice(0, 3).map(item => item.id),
-            occasion: 'weekend errands, casual meetups',
-            styling_notes: 'Layer for comfort and style'
+            outfit_name: 'Versatile Daily Look',
+            items: wardrobeItems.slice(0, Math.min(3, wardrobeItems.length)).map(item => item.id),
+            occasion: 'everyday wear, casual outings, errands',
+            styling_notes: 'Mix textures and layer pieces for visual interest and comfort'
+          },
+          {
+            outfit_name: 'Smart Casual',
+            items: wardrobeItems.slice(1, Math.min(4, wardrobeItems.length)).map(item => item.id),
+            occasion: 'casual meetings, dinner out, social events',
+            styling_notes: 'Combine structured and relaxed pieces for polished yet approachable look'
           }
         ]
       };
 
     } catch (parseError) {
-      console.error('JSON parsing failed:', parseError);
-      console.log('AI Response:', text);
-      
       // Fallback analysis
       analysis = {
         overall_score: 75,
@@ -344,17 +388,6 @@ Return as JSON in this exact structure:
     });
 
   } catch (error: any) {
-    console.error('Wardrobe analysis error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      geminiConfigured: !!process.env.GEMINI_API_KEY,
-      keyLength: process.env.GEMINI_API_KEY?.length || 0,
-      requestBody: JSON.stringify(req.body).substring(0, 500),
-      wardrobeItemsCount: req.body?.wardrobe?.length || req.body?.items?.length || 0
-    });
-    
     res.status(500).json({ 
       error: 'Failed to analyze wardrobe',
       message: 'Our AI stylist is temporarily unavailable. Please try again in a few moments.',

@@ -2,12 +2,30 @@
 
 FitMatch is an intelligent wardrobe management and styling application that uses AI to help you create perfect outfit combinations from your existing clothing items.
 
-## Features
+## 🌟 Key Features
 
 ### AI Styling Assistant
 - Smart outfit generation based on your wardrobe
 - Style preferences customization for different occasions
 - Fashion insights and color analysis
+- Interactive styling chat with Gemini AI
+
+## 🚀 Live Demo
+
+**Production URL**: [fitmatch-project-silk.vercel.app](https://fitmatch-project-silk.vercel.app)
+
+## 🔧 Recent Updates (August 2025)
+
+### ✅ Code Cleanup & Performance
+- Removed unnecessary console logs and test files
+- Fixed popup/toast dismissal issues  
+- Optimized AI API calls with stable Gemini models
+- Enhanced error handling and user feedback
+
+### ✅ UI/UX Improvements
+- Fixed asterisk formatting in style chat responses
+- Better loading states and notifications
+- Improved overall user experience
 - Personal stylist chat functionality
 
 ### Wardrobe Management

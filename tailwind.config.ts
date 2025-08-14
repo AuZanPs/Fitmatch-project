@@ -68,8 +68,7 @@ export default {
       fontFamily: {
         'playfair': ['Playfair Display', 'serif'],
         'montserrat': ['Montserrat', 'sans-serif'],
-        'inter': ['Inter', 'system-ui', 'sans-serif'], // Keep for backwards compatibility
-        'crimson': ['Crimson Text', 'serif'], // Keep for backwards compatibility
+        'inter': ['Inter', 'system-ui', 'sans-serif'],
       },
       spacing: {
         '15': '60px',

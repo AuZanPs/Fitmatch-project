@@ -44,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Use the stable Gemini model with optimized settings for outfit generation
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash-latest',
+      model: 'gemini-1.5-flash',
       generationConfig: {
         temperature: 0.3, // Lower temperature for more consistent, faster responses
         topP: 0.7, // Reduced for faster token selection
@@ -147,10 +147,6 @@ Return ONLY a JSON array in this exact format:
       }));
       
     } catch (parseError) {
-      console.error('JSON parsing failed:', parseError);
-      console.log('AI Response length:', text.length);
-      console.log('AI Response preview:', text.substring(0, 500));
-      
       // Try to extract any items mentioned in the response
       const mentionedItems: any[] = [];
       items.forEach(item => {
@@ -201,16 +197,6 @@ Return ONLY a JSON array in this exact format:
     });
 
   } catch (error: any) {
-    console.error('Outfit generation error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      geminiConfigured: !!process.env.GEMINI_API_KEY,
-      keyLength: process.env.GEMINI_API_KEY?.length || 0,
-      requestBody: JSON.stringify(req.body).substring(0, 500)
-    });
-    
     res.status(500).json({ 
       error: 'Failed to generate outfit suggestions',
       message: 'Our AI stylist is temporarily unavailable. Please try again in a few moments.',

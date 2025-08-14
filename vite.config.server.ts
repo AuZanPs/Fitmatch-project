@@ -13,7 +13,6 @@ export default defineConfig({
         const envDest = path.resolve(__dirname, 'dist/server/.env');
         if (existsSync(envSource)) {
           copyFileSync(envSource, envDest);
-          console.log('✓ Copied server/.env to dist/server/.env');
         }
       }
     }

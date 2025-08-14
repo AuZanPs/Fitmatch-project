@@ -192,11 +192,14 @@ export default function AIStylist() {
     }
 
     setIsGenerating(true);
-    toast.loading('AI stylist is creating your perfect outfit...', { duration: 2000 });
+    const loadingToast = toast.loading('AI stylist is creating your perfect outfit...', { 
+      duration: Infinity // Keep loading until we dismiss it manually
+    });
     
     // Add timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
       setIsGenerating(false);
+      toast.dismiss(loadingToast);
       toast.error('Request timed out. Please try again.');
     }, 30000); // 30 second timeout
     
@@ -218,6 +221,7 @@ export default function AIStylist() {
       });
 
       clearTimeout(timeoutId);
+      toast.dismiss(loadingToast);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -234,6 +238,7 @@ export default function AIStylist() {
       }
     } catch (error) {
       clearTimeout(timeoutId);
+      toast.dismiss(loadingToast);
       console.error('Error generating outfits:', error);
       toast.error(`Failed to generate outfits: ${error.message}`);
     } finally {
@@ -803,10 +808,11 @@ export default function AIStylist() {
                                   {paragraph.split('\n').map((line, lIndex) => {
                                     // Handle bullet points with asterisks
                                     if (line.trim().startsWith('*') && !line.includes('**')) {
+                                      const cleanText = line.trim().replace(/^\*+\s*/, ''); // Remove one or more asterisks at start
                                       return (
                                         <div key={lIndex} className="flex items-start gap-3 mt-2">
                                           <span className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></span>
-                                          <span>{line.replace(/^\*\s*/, '').trim()}</span>
+                                          <span>{cleanText}</span>
                                         </div>
                                       );
                                     }
@@ -818,7 +824,7 @@ export default function AIStylist() {
                                             partIndex % 2 === 1 ? (
                                               <strong key={partIndex} className="font-semibold text-black">{part}</strong>
                                             ) : (
-                                              <span key={partIndex}>{part}</span>
+                                              <span key={partIndex}>{part.replace(/\*/g, '')}</span> // Remove any stray asterisks
                                             )
                                           ))}
                                         </div>
@@ -826,9 +832,10 @@ export default function AIStylist() {
                                     }
                                     // Regular text
                                     else if (line.trim()) {
+                                      const cleanLine = line.replace(/\*/g, ''); // Remove any stray asterisks
                                       return (
                                         <p key={lIndex} className={lIndex > 0 ? "mt-2" : ""}>
-                                          {line}
+                                          {cleanLine}
                                         </p>
                                       );
                                     }
