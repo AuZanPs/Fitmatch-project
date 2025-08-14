@@ -117,10 +117,16 @@ Respond as a knowledgeable, friendly personal stylist who truly understands fash
     };
 
     res.status(200).json({
-      advice,
+      advice: adviceText, // Frontend expects this to be a string
       question: userQuestion,
       context_used: contextInfo ? true : false,
-      wardrobe_items_referenced: wardrobeData.length
+      wardrobe_items_referenced: wardrobeData.length,
+      // Include the detailed analysis as separate fields
+      confidence: advice.confidence,
+      tips: advice.tips,
+      relevant_items: advice.relevant_items,
+      styling_category: advice.styling_category,
+      timestamp: advice.timestamp
     });
 
   } catch (error: any) {
