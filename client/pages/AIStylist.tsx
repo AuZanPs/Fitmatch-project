@@ -739,103 +739,80 @@ export default function AIStylist() {
                         </p>
                       </div>
                     ) : (
-                      <div className="max-w-[90%] bg-white rounded-lg shadow-lg border-2 border-black overflow-hidden">
-                        {/* Header - Same style as outfit generator */}
-                        <div className="p-6 border-b-2 border-gray-200">
-                          <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-playfair text-2xl font-bold text-black flex items-center gap-2">
+                      <div className="max-w-[90%] bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-black to-gray-800 p-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
                               <Sparkles className="w-6 h-6 text-black" />
-                              AI Styling Advice
-                            </h3>
-                            <div className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg">
-                              <Star className="w-5 h-5 fill-current" />
-                              <span className="text-lg font-montserrat font-semibold">Expert</span>
+                            </div>
+                            <div>
+                              <h3 className="font-playfair text-xl font-bold text-white">AI Styling Advice</h3>
+                              <p className="font-montserrat text-sm text-gray-300">Personalized for you</p>
                             </div>
                           </div>
-                          <p className="font-montserrat text-sm text-gray-600">
-                            Personalized styling advice • {message.timestamp.toLocaleTimeString()}
-                          </p>
                         </div>
 
-                        {/* Content - Same structured style as outfit generator */}
-                        <div className="p-8 space-y-6">
-                          {/* Parse and display different sections */}
-                          {(() => {
-                            const content = message.message;
-                            const sections = [];
-                            
-                            // Check for different types of content sections
-                            if (content.includes('**')) {
-                              // Handle formatted content with sections
-                              const parts = content.split(/\*\*(.*?)\*\*/g);
-                              let currentSection = { title: '', content: '' };
-                              
-                              for (let i = 0; i < parts.length; i++) {
-                                if (i % 2 === 1) {
-                                  // This is a title (between **)
-                                  if (currentSection.content) {
-                                    sections.push(currentSection);
-                                  }
-                                  currentSection = { title: parts[i], content: '' };
-                                } else {
-                                  // This is content
-                                  currentSection.content += parts[i];
-                                }
-                              }
-                              if (currentSection.title || currentSection.content) {
-                                sections.push(currentSection);
-                              }
-                            } else {
-                              // Handle plain content
-                              sections.push({ title: 'Styling Recommendation', content });
-                            }
-
-                            return sections.map((section, sIndex) => (
-                              <div key={sIndex} className="bg-gray-50 border-l-4 border-black p-6 rounded-r-lg">
-                                {section.title && (
-                                  <h4 className="font-playfair text-xl font-bold text-black mb-4 flex items-center gap-2">
-                                    <span className="w-2 h-2 bg-black rounded-full"></span>
-                                    {section.title}
-                                  </h4>
-                                )}
-                                <div className="font-montserrat text-base text-gray-800 leading-relaxed space-y-3">
-                                  {section.content.split('\n\n').map((paragraph, pIndex) => (
-                                    <div key={pIndex}>
-                                      {paragraph.split('\n').map((line, lIndex) => {
-                                        // Handle bullet points
-                                        if (line.trim().startsWith('*') || line.trim().startsWith('-')) {
-                                          return (
-                                            <div key={lIndex} className="flex items-start gap-3 mt-2">
-                                              <span className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></span>
-                                              <span>{line.replace(/^[\*\-]\s*/, '').trim()}</span>
-                                            </div>
-                                          );
-                                        }
-                                        // Handle numbered lists
-                                        else if (line.match(/^\d+\./)) {
-                                          return (
-                                            <div key={lIndex} className="flex items-start gap-3 mt-2">
-                                              <span className="text-black font-semibold flex-shrink-0">{line.match(/^\d+\./)[0]}</span>
-                                              <span>{line.replace(/^\d+\.\s*/, '')}</span>
-                                            </div>
-                                          );
-                                        }
-                                        // Regular paragraphs
-                                        else if (line.trim()) {
-                                          return (
-                                            <p key={lIndex} className={lIndex > 0 ? "mt-3" : ""}>
-                                              {line}
-                                            </p>
-                                          );
-                                        }
-                                        return null;
-                                      })}
-                                    </div>
-                                  ))}
+                        {/* Content */}
+                        <div className="p-6">
+                          <div className="bg-gray-50 border-l-4 border-black p-6 rounded-r-lg">
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="w-2 h-2 bg-black rounded-full"></span>
+                              <h4 className="font-playfair text-lg font-bold text-black">Styling Recommendation</h4>
+                            </div>
+                            <div className="font-montserrat text-base text-gray-800 leading-relaxed">
+                              {/* Format the AI message with proper formatting */}
+                              {message.message.split('\n\n').map((paragraph, pIndex) => (
+                                <div key={pIndex} className={pIndex > 0 ? "mt-4" : ""}>
+                                  {paragraph.split('\n').map((line, lIndex) => {
+                                    // Handle bullet points with asterisks
+                                    if (line.trim().startsWith('*') && !line.includes('**')) {
+                                      return (
+                                        <div key={lIndex} className="flex items-start gap-3 mt-2">
+                                          <span className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></span>
+                                          <span>{line.replace(/^\*\s*/, '').trim()}</span>
+                                        </div>
+                                      );
+                                    }
+                                    // Handle bold headings (text between **)
+                                    else if (line.includes('**')) {
+                                      return (
+                                        <div key={lIndex} className={lIndex > 0 ? "mt-3" : ""}>
+                                          {line.split('**').map((part, partIndex) => (
+                                            partIndex % 2 === 1 ? (
+                                              <strong key={partIndex} className="font-semibold text-black">{part}</strong>
+                                            ) : (
+                                              <span key={partIndex}>{part}</span>
+                                            )
+                                          ))}
+                                        </div>
+                                      );
+                                    }
+                                    // Regular text
+                                    else if (line.trim()) {
+                                      return (
+                                        <p key={lIndex} className={lIndex > 0 ? "mt-2" : ""}>
+                                          {line}
+                                        </p>
+                                      );
+                                    }
+                                    return null;
+                                  })}
                                 </div>
-                              </div>
-                            ));
-                          })()}
+                              ))}
+                            </div>
+                          </div>
+                          
+                          {/* Footer */}
+                          <div className="mt-4 flex items-center justify-between">
+                            <p className="font-montserrat text-xs text-mejiwoo-gray">
+                              {message.timestamp.toLocaleTimeString()}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-mejiwoo-gray">
+                              <Clock className="w-3 h-3" />
+                              <span>Generated just now</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -844,26 +821,22 @@ export default function AIStylist() {
 
                 {isTyping && (
                   <div className="flex justify-start mb-6">
-                    <div className="max-w-[90%] bg-white rounded-lg shadow-lg border-2 border-black overflow-hidden">
-                      {/* Header - Same style as outfit generator */}
-                      <div className="p-6 border-b-2 border-gray-200">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="font-playfair text-2xl font-bold text-black flex items-center gap-2">
+                    <div className="max-w-[90%] bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                      {/* Header */}
+                      <div className="bg-gradient-to-r from-black to-gray-800 p-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
                             <Sparkles className="w-6 h-6 text-black animate-pulse" />
-                            AI Styling Advice
-                          </h3>
-                          <div className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg">
-                            <RefreshCw className="w-5 h-5 animate-spin" />
-                            <span className="text-lg font-montserrat font-semibold">Thinking...</span>
+                          </div>
+                          <div>
+                            <h3 className="font-playfair text-xl font-bold text-white">AI Styling Advice</h3>
+                            <p className="font-montserrat text-sm text-gray-300">Analyzing your request...</p>
                           </div>
                         </div>
-                        <p className="font-montserrat text-sm text-gray-600">
-                          Analyzing your request and wardrobe...
-                        </p>
                       </div>
 
                       {/* Content */}
-                      <div className="p-8">
+                      <div className="p-6">
                         <div className="bg-gray-50 border-l-4 border-black p-6 rounded-r-lg">
                           <div className="flex items-center gap-4">
                             <div className="flex space-x-1">
@@ -871,7 +844,7 @@ export default function AIStylist() {
                               <div className="w-3 h-3 bg-black rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                               <div className="w-3 h-3 bg-black rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                             </div>
-                            <span className="font-montserrat text-base text-gray-800">Crafting personalized styling advice for you...</span>
+                            <span className="font-montserrat text-base text-gray-800">Crafting personalized advice for you...</span>
                           </div>
                         </div>
                       </div>
