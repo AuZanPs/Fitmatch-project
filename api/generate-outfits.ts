@@ -138,19 +138,33 @@ Return ONLY a JSON array in this exact format:
         color_analysis: outfit.color_analysis || 'Harmonious color palette that enhances your natural coloring.',
         trend_insights: outfit.trend_insights || 'Timeless style with contemporary appeal.',
         items: Array.isArray(outfit.items) 
-          ? outfit.items.map(itemId => items.find(item => item.id === itemId)).filter(Boolean)
+          ? outfit.items.map(itemId => {
+              // Handle both string IDs and numbers
+              const id = typeof itemId === 'string' ? itemId : String(itemId);
+              return items.find(item => String(item.id) === id);
+            }).filter(Boolean)
           : items.slice(0, Math.min(4, items.length))
       }));
       
     } catch (parseError) {
       console.error('JSON parsing failed:', parseError);
-      console.log('AI Response:', text);
+      console.log('AI Response length:', text.length);
+      console.log('AI Response preview:', text.substring(0, 500));
+      
+      // Try to extract any items mentioned in the response
+      const mentionedItems: any[] = [];
+      items.forEach(item => {
+        if (text.includes(String(item.id)) || 
+            text.toLowerCase().includes((typeof item.category === 'string' ? item.category : item.category?.name || '').toLowerCase())) {
+          mentionedItems.push(item);
+        }
+      });
       
       // Sophisticated fallback outfit generation
       outfits = [{
         id: 'curated_outfit_1',
         name: 'AI Curated Ensemble',
-        description: text.length > 200 ? text.slice(0, 200) + '...' : text,
+        description: text.length > 200 ? text.slice(0, 200) + '...' : 'A carefully curated outfit from your wardrobe.',
         occasion: preferences.occasion || 'versatile',
         weather: preferences.weather || 'mild',
         confidence: 0.85,
@@ -158,7 +172,7 @@ Return ONLY a JSON array in this exact format:
         styling_tips: ['Excellent for the specified occasion', 'Great color harmony', 'Sophisticated and comfortable'],
         color_analysis: 'Well-balanced color palette that works beautifully together.',
         trend_insights: 'Classic styling with modern sophistication.',
-        items: items.slice(0, Math.min(3, items.length))
+        items: mentionedItems.length >= 3 ? mentionedItems.slice(0, 3) : items.slice(0, Math.min(3, items.length))
       }];
     }
 

@@ -69,3 +69,5 @@ Desktop.ini
 # Package manager duplicates (when using pnpm)
 package-lock.json
 yarn.lock
+
+.vercel
