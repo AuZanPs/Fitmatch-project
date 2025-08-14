@@ -137,7 +137,9 @@ Return ONLY a JSON array in this exact format:
           : ['Perfect proportions for your body type', 'Excellent color coordination', 'Versatile and stylish combination'],
         color_analysis: outfit.color_analysis || 'Harmonious color palette that enhances your natural coloring.',
         trend_insights: outfit.trend_insights || 'Timeless style with contemporary appeal.',
-        items: Array.isArray(outfit.items) ? outfit.items : items.slice(0, Math.min(4, items.length)).map(item => item.id)
+        items: Array.isArray(outfit.items) 
+          ? outfit.items.map(itemId => items.find(item => item.id === itemId)).filter(Boolean)
+          : items.slice(0, Math.min(4, items.length))
       }));
       
     } catch (parseError) {
@@ -156,7 +158,7 @@ Return ONLY a JSON array in this exact format:
         styling_tips: ['Excellent for the specified occasion', 'Great color harmony', 'Sophisticated and comfortable'],
         color_analysis: 'Well-balanced color palette that works beautifully together.',
         trend_insights: 'Classic styling with modern sophistication.',
-        items: items.slice(0, Math.min(3, items.length)).map(item => item.id)
+        items: items.slice(0, Math.min(3, items.length))
       }];
     }
 

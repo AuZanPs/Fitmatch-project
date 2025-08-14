@@ -760,7 +760,25 @@ export default function AIStylist() {
                               <span className="w-2 h-2 bg-black rounded-full"></span>
                               <h4 className="font-playfair text-lg font-bold text-black">Styling Recommendation</h4>
                             </div>
-                            <p className="font-montserrat text-base text-gray-800 leading-relaxed whitespace-pre-wrap">{message.message}</p>
+                            <div className="font-montserrat text-base text-gray-800 leading-relaxed">
+                              {/* Format the AI message with proper line breaks and sections */}
+                              {message.message.split('\n\n').map((paragraph, pIndex) => (
+                                <div key={pIndex} className={pIndex > 0 ? "mt-4" : ""}>
+                                  {paragraph.split('\n').map((line, lIndex) => (
+                                    <div key={lIndex} className={lIndex > 0 ? "mt-2" : ""}>
+                                      {/* Format bold text */}
+                                      {line.split('**').map((part, partIndex) => (
+                                        partIndex % 2 === 1 ? (
+                                          <strong key={partIndex} className="font-semibold text-black">{part}</strong>
+                                        ) : (
+                                          <span key={partIndex}>{part}</span>
+                                        )
+                                      ))}
+                                    </div>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                           
                           {/* Footer */}
