@@ -42,9 +42,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     
-    // Use the latest Gemini model with optimized settings for outfit generation
+    // Use the stable Gemini model with optimized settings for outfit generation
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.5-flash-latest',
+      model: 'gemini-1.5-flash-latest',
       generationConfig: {
         temperature: 0.3, // Lower temperature for more consistent, faster responses
         topP: 0.7, // Reduced for faster token selection

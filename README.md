@@ -107,7 +107,7 @@ Visit `http://localhost:8080` to start using FitMatch!
 
 ### Backend
 - Express.js server with TypeScript
-- Google Gemini 2.5 Flash for AI features
+- Google Gemini 1.5 Flash for AI features
 - Supabase for database, auth, and storage
 - Zod for input validation
 

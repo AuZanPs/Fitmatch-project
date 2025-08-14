@@ -44,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       debug: {
         apiKeyConfigured: true,
         apiKeyLength: process.env.GEMINI_API_KEY.length,
-        modelUsed: 'gemini-2.5-flash-latest'
+        modelUsed: 'gemini-1.5-flash-latest'
       }
     });
 

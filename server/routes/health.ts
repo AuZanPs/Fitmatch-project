@@ -15,7 +15,7 @@ export const handleHealthCheck: RequestHandler = async (req, res) => {
       try {
         const { GoogleGenerativeAI } = await import('@google/generative-ai');
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
         
         const result = await model.generateContent('Say "API test successful"');
         const response = await result.response;
