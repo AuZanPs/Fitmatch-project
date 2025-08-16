@@ -95,8 +95,14 @@ export const rateLimit = (maxRequests: number, windowMs: number) => {
     
     if (clientData.count >= maxRequests) {
       return res.status(429).json({ 
-        error: 'Too many requests',
-        message: 'Please try again later'
+        success: false,
+        error: 'Rate limit exceeded. Try again later.',
+        rate_limited: true,
+        details: {
+          max_requests: maxRequests,
+          window_ms: windowMs,
+          reset_in: clientData.resetTime - now
+        }
       });
     }
     

@@ -42,8 +42,12 @@ export default function ManageItems() {
   
   const availableBrands = useMemo(() => {
     return Array.from(new Set(
-      allItems.map(item => item.brand).filter(Boolean)
-    )).sort();
+      allItems.map(item => item.brand?.trim()).filter(Boolean)
+        .map(brand => brand.toLowerCase())
+    )).sort().map(brand => 
+      // Capitalize first letter for display
+      brand.charAt(0).toUpperCase() + brand.slice(1)
+    );
   }, [allItems]);
   
   const availableColors = useMemo(() => {
@@ -81,7 +85,9 @@ export default function ManageItems() {
 
     // Brand filter
     if (selectedBrand) {
-      filtered = filtered.filter(item => item.brand === selectedBrand);
+      filtered = filtered.filter(item => 
+        item.brand?.trim().toLowerCase() === selectedBrand.toLowerCase()
+      );
     }
 
     // Color filter
@@ -178,6 +184,7 @@ export default function ManageItems() {
 
   const clearAllFilters = () => {
     setSearchQuery('');
+    setDebouncedSearchQuery(''); // Also clear debounced search
     setSelectedStyle('');
     setSelectedBrand('');
     setSelectedColor('');

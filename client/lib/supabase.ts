@@ -5,11 +5,23 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = () => {
-  return supabaseUrl && 
+  const isConfigured = !!(supabaseUrl && 
          supabaseAnonKey && 
          supabaseUrl !== 'https://your-project.supabase.co' && 
          supabaseAnonKey !== 'your-anon-key' &&
-         supabaseAnonKey !== 'your-anon-key-here';
+         supabaseAnonKey !== 'your-anon-key-here');
+  
+  // Debug log for troubleshooting
+  if (!isConfigured) {
+    console.log('Supabase configuration check failed:', {
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseAnonKey,
+      urlValue: supabaseUrl || 'undefined',
+      keyLength: supabaseAnonKey?.length || 0
+    });
+  }
+  
+  return isConfigured;
 };
 
 export const supabase = isSupabaseConfigured() 

@@ -10,7 +10,7 @@ import { handleHealthCheck } from "./routes/health";
 import { 
   handleGenerateOutfits, 
   handleStylingAdvice, 
-  handleAnalyzeItem, 
+  handleItemAnalysis, 
   handleWardrobeAnalysis 
 } from "./routes/ai-stylist";
 import { rateLimit } from "./middleware/validation";
@@ -22,6 +22,10 @@ const __dirname = dirname(__filename);
 // Force load from server/.env directory
 const envPath = join(process.cwd(), 'server', '.env');
 const envResult = dotenv.config({ path: envPath });
+
+// Also load from root .env.local as fallback
+const rootEnvPath = join(process.cwd(), '.env.local');
+dotenv.config({ path: rootEnvPath });
 
 export function createServer() {
   const app = express();
@@ -56,11 +60,21 @@ export function createServer() {
   app.get("/api/health", handleHealthCheck);
   app.get("/api/demo", handleDemo);
 
-  // AI API routes with rate limiting (10 requests per minute)
-  app.post("/api/ai-stylist/generate-outfits", rateLimit(10, 60000), handleGenerateOutfits);
-  app.post("/api/ai-stylist/styling-advice", rateLimit(15, 60000), handleStylingAdvice);
-  app.post("/api/ai-stylist/analyze-item", rateLimit(20, 60000), handleAnalyzeItem);
-  app.post("/api/ai-stylist/wardrobe-analysis", rateLimit(10, 60000), handleWardrobeAnalysis);
+  // AI API routes with generous rate limiting for development
+  app.post("/api/generate-outfits", rateLimit(100, 60000), handleGenerateOutfits);
+  app.post("/api/styling-advice", rateLimit(100, 60000), handleStylingAdvice);
+  app.post("/api/analyze-item", rateLimit(100, 60000), handleItemAnalysis);
+  app.post("/api/wardrobe-analysis", rateLimit(100, 60000), handleWardrobeAnalysis);
   
   return app;
 }
+
+// Start the development server
+const app = createServer();
+const port = process.env.PORT || 3001;
+
+app.listen(port, () => {
+  console.log(`🚀 Express server running on http://localhost:${port}`);
+  console.log(`📡 API endpoints available at http://localhost:${port}/api/*`);
+  console.log(`🎯 Frontend running on http://localhost:8080`);
+});

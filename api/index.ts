@@ -14,12 +14,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'GET') {
     return res.status(200).json({ 
-      message: 'FitMatch API is running on Vercel',
+      message: 'FitMatch API is running on Vercel with Hugging Face AI',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'production',
+      aiProvider: 'Hugging Face',
       available_endpoints: [
         'POST /api/generate-outfits',
-        'POST /api/styling-advice'
+        'POST /api/styling-advice',
+        'POST /api/wardrobe-analysis',
+        'POST /api/analyze-item'
       ]
     });
   }

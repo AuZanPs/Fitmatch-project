@@ -1,14 +1,23 @@
 # FitMatch - AI-Powered Fashion Assistant
 
-FitMatch is an intelligent wardrobe management and styling application that uses AI to help you create perfect outfit combinations from your existing clothing items.
+FitMatch is an intelligent wardrobe management and styling application that helps you organize your clothing and create perfect outfit combinations.
 
 ## 🌟 Key Features
 
-### AI Styling Assistant
+### Wardrobe Management
+- Upload and categorize your clothing items
+- Organize by type, color, and brand
+- Visual wardrobe overview
+
+### Smart Dashboard
+- Quick access to your wardrobe
+- Upload new items easily
+- Intuitive navigation
+
+### AI Styling Assistant (Coming Soon)
 - Smart outfit generation based on your wardrobe
 - Style preferences customization for different occasions
-- Fashion insights and color analysis
-- Interactive styling chat with Gemini AI
+- Fashion insights and personalized recommendations
 
 ## 🚀 Live Demo
 
@@ -16,17 +25,17 @@ FitMatch is an intelligent wardrobe management and styling application that uses
 
 ## 🔧 Recent Updates (August 2025)
 
+### ✅ Architecture Simplification
+- Migrated to Vercel serverless functions
+- Simplified single-server development setup
+- Removed unnecessary Express server complexity
+- Cleaned up fallback methods and mock data
+
 ### ✅ Code Cleanup & Performance
 - Removed unnecessary console logs and test files
-- Fixed popup/toast dismissal issues  
-- Optimized AI API calls with stable Gemini models
+- Streamlined development workflow
 - Enhanced error handling and user feedback
-
-### ✅ UI/UX Improvements
-- Fixed asterisk formatting in style chat responses
-- Better loading states and notifications
-- Improved overall user experience
-- Personal stylist chat functionality
+- Improved build process and deployment
 
 ### Wardrobe Management
 - Visual wardrobe with photo uploads

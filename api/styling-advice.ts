@@ -1,222 +1,248 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+interface StylingRequest {
+  question: string;
+  context?: {
+    occasion?: string;
+    body_type?: string;
+    style_preference?: string;
+    wardrobe_items?: string[];
+    budget?: string;
+  };
+}
+
+interface StylingResponse {
+  success: boolean;
+  advice?: string;
+  suggestions?: string[];
+  error?: string;
+  rate_limited?: boolean;
+}
+
+// Rate limiting for free tier
+let requestCount = 0;
+let lastReset = Date.now();
+
+const checkRateLimit = (): boolean => {
+  const now = Date.now();
+  const hoursPassed = (now - lastReset) / (1000 * 60 * 60);
+  
+  if (hoursPassed >= 1) {
+    requestCount = 0;
+    lastReset = now;
+  }
+  
+  if (requestCount >= 25) {
+    return false;
+  }
+  
+  requestCount++;
+  return true;
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Method not allowed. Use POST.' 
+    });
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  // Check rate limit
+  if (!checkRateLimit()) {
+    return res.status(429).json({
+      success: false,
+      error: 'Rate limit exceeded. Try again in an hour.',
+      rate_limited: true
+    });
+  }
+
+  // Check API key
+  if (!process.env.HUGGINGFACE_API_KEY) {
+    return res.status(500).json({
+      success: false,
+      error: 'Hugging Face API key not configured'
+    });
   }
 
   try {
-    const { 
-      query, 
-      question, 
-      wardrobe = [], 
-      wardrobeItems = [],
-      userProfile = {}, 
-      preferences = {}
-    } = req.body;
+    const { question, context }: StylingRequest = req.body;
 
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: 'Gemini API key not configured' });
-    }
-
-    // Support backwards compatibility - check for both query and question
-    const userQuestion = query || question;
-    
-    if (!userQuestion) {
-      return res.status(400).json({ error: 'Question is required' });
-    }
-
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    
-    // Use the stable Gemini model with settings optimized for conversational styling advice
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',  // Use stable version instead of latest
-      generationConfig: {
-        temperature: 0.8, // Higher temperature for more creative and conversational responses
-        topP: 0.9,
-        topK: 40,
-        maxOutputTokens: 4096, // Larger output for detailed advice
-      }
-    });
-
-    // Build comprehensive context for sophisticated AI response
-    let contextInfo = '';
-    const wardrobeData = wardrobe.length > 0 ? wardrobe : wardrobeItems;
-    
-    if (wardrobeData && wardrobeData.length > 0) {
-      contextInfo += `\nUSER'S WARDROBE (${wardrobeData.length} items):\n`;
-      wardrobeData.forEach((item, index) => {
-        const category = typeof item.category === 'string' ? item.category : item.category?.name || 'Item';
-        const tags = item.clothing_item_style_tags?.map(tag => tag.style_tag.name).join(', ') || '';
-        contextInfo += `${index + 1}. ${category}: ${item.color || 'Color not specified'} ${item.brand || ''} ${tags ? `(${tags})` : ''}\n`;
+    if (!question) {
+      return res.status(400).json({
+        success: false,
+        error: 'Question is required'
       });
     }
 
-    if (userProfile && Object.keys(userProfile).length > 0) {
-      contextInfo += `\nUSER PROFILE:\n`;
-      if (userProfile.age) contextInfo += `- Age: ${userProfile.age}\n`;
-      if (userProfile.style_preference) contextInfo += `- Style inspiration: ${userProfile.style_preference}\n`;
-      if (userProfile.gender) contextInfo += `- Gender: ${userProfile.gender}\n`;
+    // Build context-aware prompt
+    let prompt = `You are a professional fashion stylist with years of experience. A client is asking for advice.
+
+Client Question: "${question}"`;
+
+    if (context) {
+      prompt += `\n\nClient Context:`;
+      if (context.occasion) prompt += `\n- Occasion: ${context.occasion}`;
+      if (context.body_type) prompt += `\n- Body type: ${context.body_type}`;
+      if (context.style_preference) prompt += `\n- Style preference: ${context.style_preference}`;
+      if (context.wardrobe_items?.length) prompt += `\n- Current wardrobe: ${context.wardrobe_items.join(', ')}`;
+      if (context.budget) prompt += `\n- Budget: ${context.budget}`;
     }
 
-    if (preferences && Object.keys(preferences).length > 0) {
-      contextInfo += `\nSTYLE PREFERENCES:\n`;
-      if (preferences.occasion) contextInfo += `- Preferred occasions: ${preferences.occasion}\n`;
-      if (preferences.weather) contextInfo += `- Weather considerations: ${preferences.weather}\n`;
-      if (preferences.style) contextInfo += `- Style preference: ${preferences.style}\n`;
-      if (preferences.colors) contextInfo += `- Color preferences: ${preferences.colors.join(', ')}\n`;
+    prompt += `\n\nProvide helpful, specific fashion advice. Be encouraging and practical. Include specific styling tips and suggestions.`;
+
+    // Call Hugging Face conversational AI
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium",
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        method: "POST",
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            max_length: 300,
+            temperature: 0.7,
+            top_p: 0.9
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Hugging Face API error: ${response.status}`);
     }
 
-    // Sophisticated prompt matching your original local setup quality
-    const prompt = `You are an expert personal fashion stylist and style consultant with extensive knowledge of:
-- Color theory and seasonal color analysis
-- Body type and proportion guidelines
-- Current fashion trends and timeless style principles
-- Fabric care and wardrobe investment strategies
-- Personal shopping and styling techniques
+    const result = await response.json();
+    const advice = result[0]?.generated_text || '';
 
-A client has asked you: "${userQuestion}"
-${contextInfo}
+    // Extract actionable suggestions
+    const suggestions = extractSuggestions(advice, question);
 
-INSTRUCTIONS:
-1. Provide sophisticated, personalized styling advice based on their specific wardrobe and profile
-2. Be specific and actionable - reference actual items from their wardrobe when relevant
-3. Consider their lifestyle, preferences, and any context provided
-4. Offer creative alternatives and explain your professional reasoning
-5. Be encouraging and confidence-building in your tone
-6. If suggesting new purchases, be mindful of building a cohesive wardrobe
-7. Include specific styling formulas, color combinations, or professional techniques
-8. Share insider styling tips that demonstrate your expertise
-
-Respond as a knowledgeable, friendly personal stylist who truly understands fashion and wants to help them look and feel their best.`;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const adviceText = response.text();
-
-    // Process the advice to extract actionable insights (maintaining your original quality)
-    const advice = {
-      answer: adviceText,
-      confidence: 0.95, // High confidence for expert styling advice
-      tips: extractActionableTips(adviceText),
-      relevant_items: findRelevantWardrobeItems(adviceText, wardrobeData),
-      styling_category: categorizeAdvice(userQuestion),
-      timestamp: new Date().toISOString()
-    };
-
-    res.status(200).json({
-      advice: adviceText, // Frontend expects this to be a string
-      question: userQuestion,
-      context_used: contextInfo ? true : false,
-      wardrobe_items_referenced: wardrobeData.length,
-      // Include the detailed analysis as separate fields
-      confidence: advice.confidence,
-      tips: advice.tips,
-      relevant_items: advice.relevant_items,
-      styling_category: advice.styling_category,
-      timestamp: advice.timestamp
+    return res.status(200).json({
+      success: true,
+      advice: advice || generateFallbackAdvice(question, context),
+      suggestions
     });
 
-  } catch (error: any) {
-    res.status(500).json({ 
-      error: 'Failed to generate styling advice',
-      message: 'Our AI stylist is temporarily unavailable. Please try again in a few moments.',
-      debug: process.env.NODE_ENV === 'development' ? {
-        errorMessage: error.message,
-        geminiConfigured: !!process.env.GEMINI_API_KEY
-      } : undefined
+  } catch (error) {
+    console.error('Styling advice error:', error);
+    
+    // Provide fallback advice
+    const fallbackAdvice = generateFallbackAdvice(req.body.question, req.body.context);
+    
+    return res.status(200).json({
+      success: true,
+      advice: fallbackAdvice,
+      suggestions: extractSuggestions(fallbackAdvice, req.body.question),
+      note: 'Using fallback recommendations due to AI service unavailability'
     });
   }
 }
 
-// Helper function to extract actionable styling tips from the advice text
-function extractActionableTips(text: string): string[] {
-  const tips: string[] = [];
+// Extract actionable suggestions from advice text
+function extractSuggestions(advice: string, question: string): string[] {
+  const suggestions: string[] = [];
   
-  // Look for various tip patterns in the sophisticated response
-  const tipPatterns = [
-    /(\d+\.\s+[^.\n]{20,200})/g,
-    /([•\-\*]\s+[^.\n]{20,200})/g,
-    /(Try\s+[^.\n]{15,150})/gi,
-    /(Consider\s+[^.\n]{15,150})/gi,
-    /(Pro tip:?\s+[^.\n]{15,150})/gi,
-    /(Style tip:?\s+[^.\n]{15,150})/gi
+  // Common fashion advice patterns
+  const patterns = [
+    /try (.*?)[.!]/gi,
+    /consider (.*?)[.!]/gi,
+    /wear (.*?)[.!]/gi,
+    /choose (.*?)[.!]/gi,
+    /add (.*?)[.!]/gi,
+    /pair (.*?)[.!]/gi
   ];
 
-  for (const pattern of tipPatterns) {
-    const matches = text.match(pattern);
+  patterns.forEach(pattern => {
+    const matches = advice.match(pattern);
     if (matches) {
       matches.forEach(match => {
-        const cleanTip = match.replace(/^\d+\.\s*|^[•\-\*]\s*|^(Pro tip|Style tip):?\s*/i, '').trim();
-        if (cleanTip.length > 15 && cleanTip.length < 200 && !tips.some(tip => tip.includes(cleanTip.slice(0, 20)))) {
-          tips.push(cleanTip);
+        const suggestion = match.replace(/try |consider |wear |choose |add |pair /i, '').replace(/[.!]$/, '');
+        if (suggestion.length > 5 && suggestion.length < 100) {
+          suggestions.push(suggestion.charAt(0).toUpperCase() + suggestion.slice(1));
         }
       });
     }
-  }
-
-  // If no specific tips found, extract the most actionable sentences
-  if (tips.length === 0) {
-    const sentences = text.split(/[.!?]+/).filter(s => 
-      s.length > 25 && s.length < 200 && 
-      (s.includes('try') || s.includes('wear') || s.includes('pair') || s.includes('choose'))
-    );
-    tips.push(...sentences.slice(0, 4).map(s => s.trim()));
-  }
-
-  return tips.slice(0, 6); // Return top 6 actionable tips
-}
-
-// Helper function to find wardrobe items mentioned in the advice
-function findRelevantWardrobeItems(text: string, wardrobeItems: any[]): string[] {
-  if (!wardrobeItems || wardrobeItems.length === 0) return [];
-
-  const relevantIds: string[] = [];
-  const lowerText = text.toLowerCase();
-
-  wardrobeItems.forEach(item => {
-    const category = typeof item.category === 'string' ? item.category : item.category?.name || '';
-    const itemTerms = [
-      category.toLowerCase(),
-      item.color?.toLowerCase(),
-      item.brand?.toLowerCase(),
-      ...(item.clothing_item_style_tags?.map(tag => tag.style_tag.name.toLowerCase()) || [])
-    ].filter(Boolean);
-
-    const isRelevant = itemTerms.some(term => 
-      term && lowerText.includes(term)
-    );
-
-    if (isRelevant && !relevantIds.includes(item.id)) {
-      relevantIds.push(item.id);
-    }
   });
 
-  return relevantIds;
+  // If no suggestions found, create some based on question type
+  if (suggestions.length === 0) {
+    suggestions.push(...generateContextualSuggestions(question));
+  }
+
+  return suggestions.slice(0, 5); // Limit to 5 suggestions
 }
 
-// Helper function to categorize the type of styling advice
-function categorizeAdvice(question: string): string {
-  const lowerQuestion = question.toLowerCase();
+// Generate suggestions based on question type
+function generateContextualSuggestions(question: string): string[] {
+  const q = question.toLowerCase();
   
-  if (lowerQuestion.includes('color') || lowerQuestion.includes('colours')) return 'color_advice';
-  if (lowerQuestion.includes('occasion') || lowerQuestion.includes('event')) return 'occasion_styling';
-  if (lowerQuestion.includes('body') || lowerQuestion.includes('figure')) return 'body_type_advice';
-  if (lowerQuestion.includes('trend') || lowerQuestion.includes('fashion')) return 'trend_advice';
-  if (lowerQuestion.includes('outfit') || lowerQuestion.includes('look')) return 'outfit_creation';
-  if (lowerQuestion.includes('buy') || lowerQuestion.includes('shop')) return 'shopping_advice';
+  if (q.includes('color') || q.includes('colour')) {
+    return [
+      'Stick to a cohesive color palette',
+      'Use the color wheel for complementary combinations',
+      'Consider your skin tone when choosing colors'
+    ];
+  }
   
-  return 'general_styling';
+  if (q.includes('body') || q.includes('figure') || q.includes('shape')) {
+    return [
+      'Choose clothes that fit well rather than following trends',
+      'Highlight your favorite features',
+      'Consider proportions and silhouettes'
+    ];
+  }
+  
+  if (q.includes('work') || q.includes('office') || q.includes('professional')) {
+    return [
+      'Invest in quality basics',
+      'Keep accessories minimal and elegant',
+      'Ensure clothes are well-tailored'
+    ];
+  }
+  
+  if (q.includes('casual') || q.includes('everyday')) {
+    return [
+      'Focus on comfort and versatility',
+      'Mix textures for visual interest',
+      'Layer pieces for different looks'
+    ];
+  }
+  
+  return [
+    'Choose quality over quantity',
+    'Ensure proper fit',
+    'Build a cohesive wardrobe'
+  ];
+}
+
+// Generate fallback advice when AI is unavailable
+function generateFallbackAdvice(question: string, context?: any): string {
+  const q = question.toLowerCase();
+  
+  if (q.includes('color')) {
+    return "When choosing colors, consider your skin tone and the occasion. Neutral colors like black, white, gray, and navy are versatile and easy to mix and match. For a pop of color, choose one accent piece and keep the rest neutral.";
+  }
+  
+  if (q.includes('body') || q.includes('shape')) {
+    return "The most important thing is to wear clothes that fit well and make you feel confident. Focus on highlighting the features you love about yourself. Well-fitted clothes in quality fabrics will always look better than trendy pieces that don't fit properly.";
+  }
+  
+  if (q.includes('work') || q.includes('professional')) {
+    return "For professional settings, invest in quality basics: well-fitted blazers, dress pants, button-down shirts, and comfortable yet polished shoes. Keep colors neutral and accessories minimal. The key is looking put-together and confident.";
+  }
+  
+  if (q.includes('casual')) {
+    return "For casual wear, prioritize comfort and versatility. Good jeans, comfortable sneakers, and classic t-shirts or sweaters form a great foundation. Add layers and accessories to change up your look throughout the week.";
+  }
+  
+  if (q.includes('occasion') || q.includes('event')) {
+    return "When dressing for special occasions, consider the venue, time of day, and dress code. It's better to be slightly overdressed than underdressed. Choose one statement piece and keep everything else simple and elegant.";
+  }
+  
+  return "Great question! The key to good style is wearing clothes that fit well, make you feel confident, and are appropriate for the occasion. Focus on building a wardrobe with versatile pieces that you can mix and match. Quality basics will serve you better than trendy pieces that quickly go out of style.";
 }

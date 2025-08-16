@@ -574,7 +574,6 @@ export default function AIStylist() {
                       <option value="edgy">Edgy</option>
                       <option value="romantic">Romantic</option>
                       <option value="minimalist">Minimalist</option>
-                      <option value="bohemian">Bohemian</option>
                       <option value="classic">Classic</option>
                     </select>
                   </div>

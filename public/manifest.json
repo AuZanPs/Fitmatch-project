@@ -1,0 +1,16 @@
+{
+  "name": "FitMatch - AI Personal Stylist",
+  "short_name": "FitMatch",
+  "description": "AI-powered fashion styling and outfit generation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f3f0",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -43,7 +43,9 @@ CREATE INDEX IF NOT EXISTS idx_clothing_items_category_id ON clothing_items(cate
 CREATE INDEX IF NOT EXISTS idx_clothing_item_style_tags_clothing_item_id ON clothing_item_style_tags(clothing_item_id);
 CREATE INDEX IF NOT EXISTS idx_clothing_item_style_tags_style_tag_id ON clothing_item_style_tags(style_tag_id);
 
--- 6. Enable Row Level Security (RLS)
+-- 6. Enable Row Level Security (RLS) on ALL tables
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE style_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clothing_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clothing_item_style_tags ENABLE ROW LEVEL SECURITY;
 
@@ -64,7 +66,16 @@ DROP POLICY IF EXISTS "Users can delete their own clothing items" ON clothing_it
 CREATE POLICY "Users can delete their own clothing items" ON clothing_items
   FOR DELETE USING (auth.uid() = user_id);
 
--- 8. Create RLS policies for clothing_item_style_tags (with DROP IF EXISTS to handle existing policies)
+-- 8. Create RLS policies for categories and style_tags (public read access)
+DROP POLICY IF EXISTS "Public read access for categories" ON categories;
+CREATE POLICY "Public read access for categories" ON categories
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public read access for style_tags" ON style_tags;
+CREATE POLICY "Public read access for style_tags" ON style_tags
+  FOR SELECT USING (true);
+
+-- 9. Create RLS policies for clothing_item_style_tags (with DROP IF EXISTS to handle existing policies)
 DROP POLICY IF EXISTS "Users can view style tags for their clothing items" ON clothing_item_style_tags;
 CREATE POLICY "Users can view style tags for their clothing items" ON clothing_item_style_tags
   FOR SELECT USING (
@@ -85,6 +96,16 @@ CREATE POLICY "Users can insert style tags for their clothing items" ON clothing
     )
   );
 
+DROP POLICY IF EXISTS "Users can update style tags for their clothing items" ON clothing_item_style_tags;
+CREATE POLICY "Users can update style tags for their clothing items" ON clothing_item_style_tags
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM clothing_items 
+      WHERE clothing_items.id = clothing_item_style_tags.clothing_item_id 
+      AND clothing_items.user_id = auth.uid()
+    )
+  );
+
 DROP POLICY IF EXISTS "Users can delete style tags for their clothing items" ON clothing_item_style_tags;
 CREATE POLICY "Users can delete style tags for their clothing items" ON clothing_item_style_tags
   FOR DELETE USING (
@@ -95,7 +116,7 @@ CREATE POLICY "Users can delete style tags for their clothing items" ON clothing
     )
   );
 
--- 9. Insert default categories (THIS IS WHAT YOU'RE MISSING!)
+-- 10. Insert default categories (THIS IS WHAT YOU'RE MISSING!)
 INSERT INTO categories (name) VALUES 
   ('Tops'),
   ('Bottoms'),
@@ -103,13 +124,10 @@ INSERT INTO categories (name) VALUES
   ('Shoes'),
   ('Accessories'),
   ('Dresses'),
-  ('Activewear'),
-  ('Swimwear'),
-  ('Underwear'),
-  ('Sleepwear')
+  ('Activewear')
 ON CONFLICT (name) DO NOTHING;
 
--- 10. Insert default style tags (THIS IS WHAT YOU'RE MISSING!)
+-- 11. Insert default style tags (THIS IS WHAT YOU'RE MISSING!)
 INSERT INTO style_tags (name) VALUES 
   ('Casual'),
   ('Formal'),
@@ -123,7 +141,6 @@ INSERT INTO style_tags (name) VALUES
   ('Fall'),
   ('Vintage'),
   ('Modern'),
-  ('Bohemian'),
   ('Minimalist'),
   ('Streetwear'),
   ('Elegant'),
@@ -131,7 +148,7 @@ INSERT INTO style_tags (name) VALUES
   ('Comfortable')
 ON CONFLICT (name) DO NOTHING;
 
--- 11. Create a function to automatically update the updated_at timestamp
+-- 12. Create a function to automatically update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -140,19 +157,19 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- 12. Create trigger to automatically update updated_at
+-- 13. Create trigger to automatically update updated_at
 DROP TRIGGER IF EXISTS update_clothing_items_updated_at ON clothing_items;
 CREATE TRIGGER update_clothing_items_updated_at 
     BEFORE UPDATE ON clothing_items 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
--- 13. Create storage bucket for clothing images
+-- 14. Create storage bucket for clothing images
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('clothing-images', 'clothing-images', true)
 ON CONFLICT (id) DO NOTHING;
 
--- 14. Create storage policies
+-- 15. Create storage policies
 DROP POLICY IF EXISTS "Users can upload their own images" ON storage.objects;
 CREATE POLICY "Users can upload their own images" ON storage.objects
   FOR INSERT WITH CHECK (
@@ -181,5 +198,40 @@ CREATE POLICY "Users can delete their own images" ON storage.objects
     auth.uid()::text = (storage.foldername(name))[1]
   );
 
+-- 16. Clean up brand data for consistency (fix duplicates and normalize)
+UPDATE clothing_items 
+SET brand = 'Nike' 
+WHERE LOWER(TRIM(brand)) = 'nike';
+
+UPDATE clothing_items 
+SET brand = 'Adidas' 
+WHERE LOWER(TRIM(brand)) = 'adidas';
+
+UPDATE clothing_items 
+SET brand = 'Zara' 
+WHERE LOWER(TRIM(brand)) = 'zara';
+
+UPDATE clothing_items 
+SET brand = 'H&M' 
+WHERE LOWER(TRIM(brand)) = 'h&m';
+
+-- Remove leading/trailing spaces from all brand names
+UPDATE clothing_items 
+SET brand = TRIM(brand) 
+WHERE brand IS NOT NULL AND brand != TRIM(brand);
+
+-- Capitalize first letter of all brand names for consistency
+UPDATE clothing_items 
+SET brand = INITCAP(brand) 
+WHERE brand IS NOT NULL;
+
 -- Success message
 SELECT 'Database setup completed successfully! You should now see categories and style tags in your app.' as message;
+
+-- Show current brand list for verification
+SELECT 'Current brands in database:' as info;
+SELECT DISTINCT brand, COUNT(*) as item_count 
+FROM clothing_items 
+WHERE brand IS NOT NULL 
+GROUP BY brand 
+ORDER BY brand;

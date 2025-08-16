@@ -30,5 +30,5 @@ export const DEFAULT_STYLE_TAGS = [
 export const STYLE_PREFERENCES = {
   occasions: ['casual', 'work', 'formal', 'date', 'party', 'travel'] as const,
   weather: ['hot', 'mild', 'cold', 'rainy'] as const,
-  styles: ['comfortable', 'elegant', 'edgy', 'romantic', 'minimalist', 'bohemian', 'classic'] as const
+  styles: ['comfortable', 'elegant', 'edgy', 'romantic', 'minimalist', 'classic'] as const
 } as const;

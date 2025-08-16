@@ -160,16 +160,17 @@ export default function Upload() {
     <div className="min-h-screen bg-mejiwoo-cream">
       {/* Header */}
       <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <div className="flex items-center gap-2 sm:gap-4">
               <button
                 onClick={() => navigate('/dashboard')}
-                className="text-mejiwoo-gray hover:text-black transition-colors"
+                className="text-mejiwoo-gray hover:text-black transition-colors p-2 -ml-2 touch-manipulation"
+                title="Back to Dashboard"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-                            <h1 className="font-playfair text-2xl font-bold text-black">
+              <h1 className="font-playfair text-lg sm:text-xl lg:text-2xl font-bold text-black">
                 Upload New Item
               </h1>
             </div>
@@ -177,11 +178,11 @@ export default function Upload() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <form onSubmit={handleSubmit} className="space-y-8">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 lg:space-y-8">
           {/* Image Upload */}
-          <div className="bg-white rounded-lg p-6">
-            <h2 className="font-playfair text-xl font-semibold text-black mb-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6">
+            <h2 className="font-playfair text-lg sm:text-xl font-semibold text-black mb-3 sm:mb-4">
               Upload Photo *
             </h2>
             
@@ -189,15 +190,15 @@ export default function Upload() {
               <div
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
-                className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-gray-400 transition-colors cursor-pointer"
+                className="border-2 border-dashed border-gray-300 rounded-lg p-8 sm:p-12 text-center hover:border-gray-400 transition-colors cursor-pointer touch-manipulation"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <UploadIcon className="w-12 h-12 text-mejiwoo-gray mx-auto mb-4" />
-                                <p className="font-montserrat text-lg text-black mb-2">
+                <UploadIcon className="w-8 h-8 sm:w-12 sm:h-12 text-mejiwoo-gray mx-auto mb-3 sm:mb-4" />
+                <p className="font-montserrat text-base sm:text-lg text-black mb-1 sm:mb-2">
                   Drag and drop an image here
                 </p>
-                <p className="font-montserrat text-sm text-mejiwoo-gray">
-                  or click to browse your files
+                <p className="font-montserrat text-xs sm:text-sm text-mejiwoo-gray">
+                  or tap to browse your files
                 </p>
                 <input
                   ref={fileInputRef}
@@ -212,12 +213,12 @@ export default function Upload() {
                 <img
                   src={imagePreview}
                   alt="Preview"
-                  className="w-full max-w-sm mx-auto rounded-lg shadow-md"
+                  className="w-full max-w-xs sm:max-w-sm mx-auto rounded-lg shadow-md"
                 />
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="absolute top-2 right-2 bg-black text-white rounded-full p-1 hover:bg-gray-800 transition-colors"
+                  className="absolute top-2 right-2 bg-black text-white rounded-full p-2 hover:bg-gray-800 transition-colors touch-manipulation"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -226,18 +227,18 @@ export default function Upload() {
           </div>
 
           {/* Category Selection */}
-          <div className="bg-white rounded-lg p-6">
-            <h2 className="font-playfair text-xl font-semibold text-black mb-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6">
+            <h2 className="font-playfair text-lg sm:text-xl font-semibold text-black mb-3 sm:mb-4">
               Category *
             </h2>
             {categories.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
                 {categories.map((category) => (
                   <button
                     key={category.id}
                     type="button"
                     onClick={() => setSelectedCategory(category.id)}
-                    className={`p-3 rounded-lg font-montserrat font-medium transition-colors ${
+                    className={`p-2 sm:p-3 rounded-lg font-montserrat font-medium transition-colors text-sm sm:text-base touch-manipulation min-h-[44px] ${
                       selectedCategory === category.id
                         ? 'bg-black text-white'
                         : 'bg-gray-100 text-black hover:bg-gray-200'
@@ -248,11 +249,11 @@ export default function Upload() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
+              <div className="text-center py-6 sm:py-8">
                 <p className="text-mejiwoo-gray mb-4">No categories found</p>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-left">
-                  <p className="text-sm text-yellow-800 mb-2"><strong>Database Setup Required:</strong></p>
-                  <p className="text-sm text-yellow-700">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4 text-left">
+                  <p className="text-xs sm:text-sm text-yellow-800 mb-2"><strong>Database Setup Required:</strong></p>
+                  <p className="text-xs sm:text-sm text-yellow-700">
                     Please run the database setup script in your Supabase SQL Editor to create categories.
                   </p>
                 </div>
@@ -261,36 +262,36 @@ export default function Upload() {
           </div>
 
           {/* Style Tags Selection */}
-          <div className="bg-white rounded-lg p-6">
-            <h2 className="font-playfair text-xl font-semibold text-black mb-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6">
+            <h2 className="font-playfair text-lg sm:text-xl font-semibold text-black mb-3 sm:mb-4">
               Style Tags * (select at least one)
             </h2>
             {styleTags.length > 0 ? (
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2 sm:gap-3">
                 {styleTags.map((tag) => (
                   <button
                     key={tag.id}
                     type="button"
                     onClick={() => toggleStyleTag(tag.id)}
-                    className={`px-4 py-2 rounded-full font-montserrat font-medium transition-colors flex items-center gap-2 ${
+                    className={`px-3 sm:px-4 py-2 rounded-full font-montserrat font-medium transition-colors flex items-center gap-1 sm:gap-2 text-sm sm:text-base touch-manipulation min-h-[44px] ${
                       selectedStyleTags.includes(tag.id)
                         ? 'bg-black text-white'
                         : 'bg-gray-100 text-black hover:bg-gray-200'
                     }`}
                   >
                     {selectedStyleTags.includes(tag.id) && (
-                      <Check className="w-4 h-4" />
+                      <Check className="w-3 h-3 sm:w-4 sm:h-4" />
                     )}
                     {tag.name}
                   </button>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
+              <div className="text-center py-6 sm:py-8">
                 <p className="text-mejiwoo-gray mb-4">No style tags found</p>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-left">
-                  <p className="text-sm text-yellow-800 mb-2"><strong>Database Setup Required:</strong></p>
-                  <p className="text-sm text-yellow-700">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4 text-left">
+                  <p className="text-xs sm:text-sm text-yellow-800 mb-2"><strong>Database Setup Required:</strong></p>
+                  <p className="text-xs sm:text-sm text-yellow-700">
                     Please run the database setup script in your Supabase SQL Editor to create style tags.
                   </p>
                 </div>
@@ -299,11 +300,11 @@ export default function Upload() {
           </div>
 
           {/* Optional Details */}
-          <div className="bg-white rounded-lg p-6">
-            <h2 className="font-inter text-xl font-semibold text-black mb-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6">
+            <h2 className="font-inter text-lg sm:text-xl font-semibold text-black mb-3 sm:mb-4">
               Additional Details (Optional)
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block font-inter text-sm font-medium text-black mb-2">
                   Brand
@@ -312,7 +313,7 @@ export default function Upload() {
                   type="text"
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                  className="w-full px-3 sm:px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm sm:text-base touch-manipulation"
                   placeholder="e.g. Nike, Zara, H&M"
                 />
               </div>
@@ -325,7 +326,7 @@ export default function Upload() {
                   type="text"
                   value={color}
                   onChange={(e) => setColor(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                  className="w-full px-3 sm:px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none text-sm sm:text-base touch-manipulation"
                   placeholder="e.g. Black, Navy Blue, Red"
                 />
               </div>
@@ -333,18 +334,18 @@ export default function Upload() {
           </div>
 
           {/* Submit Button */}
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pb-4 sm:pb-0">
             <button
               type="button"
               onClick={() => navigate('/dashboard')}
-              className="flex-1 bg-gray-100 text-black py-3 rounded-lg font-montserrat font-medium hover:bg-gray-200 transition-colors"
+              className="w-full sm:flex-1 bg-gray-100 text-black py-3 rounded-lg font-montserrat font-medium hover:bg-gray-200 transition-colors text-sm sm:text-base touch-manipulation min-h-[44px] order-2 sm:order-1"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isUploading || !selectedImage || !selectedCategory || selectedStyleTags.length === 0}
-              className="flex-1 bg-black text-white py-3 rounded-lg font-montserrat font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:flex-1 bg-black text-white py-3 rounded-lg font-montserrat font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base touch-manipulation min-h-[44px] order-1 sm:order-2"
             >
               {isUploading ? 'Adding Item...' : 'Add Item'}
             </button>
