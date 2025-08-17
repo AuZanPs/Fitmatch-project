@@ -55,14 +55,18 @@ export default function Dashboard() {
 
   // Memoize filtered style suggestions
   const filteredStyleSuggestions = useMemo(() => {
-    if (!styleSearchQuery.trim()) return styleTags;
-    
     const query = styleSearchQuery.toLowerCase();
     return styleTags.filter(style => {
-      // Only show styles that match the search AND have items
-      const matchesSearch = style.name.toLowerCase().includes(query);
+      // Always filter out styles with no items
       const hasItems = getItemCountForStyle(style.id) > 0;
-      return matchesSearch && hasItems;
+      if (!hasItems) return false;
+      
+      // If no search query, show all styles that have items
+      if (!query.trim()) return true;
+      
+      // If there's a search query, check if it matches
+      const matchesSearch = style.name.toLowerCase().includes(query);
+      return matchesSearch;
     });
   }, [styleTags, styleSearchQuery, getItemCountForStyle]);
 
@@ -397,14 +401,15 @@ export default function Dashboard() {
                 </button>
               )}
 
-              {/* AI Stylist Button - Hide text on mobile */}
+              {/* AI Stylist Button - Temporarily disabled */}
               <button
-                onClick={() => navigate('/ai-stylist')}
-                className="bg-purple-600 text-white px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg font-montserrat font-medium hover:bg-purple-700 transition-colors flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
+                onClick={() => toast.info('AI Stylist feature coming soon!')}
+                className="bg-gray-400 text-white px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg font-montserrat font-medium hover:bg-gray-500 transition-colors flex items-center gap-1 sm:gap-2 text-xs sm:text-sm cursor-not-allowed"
+                title="Coming Soon"
               >
                 <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline lg:hidden">AI</span>
-                <span className="hidden lg:inline">AI Stylist</span>
+                <span className="hidden sm:inline lg:hidden">Soon</span>
+                <span className="hidden lg:inline">Coming Soon</span>
               </button>
               
               <button
@@ -589,9 +594,7 @@ export default function Dashboard() {
                   {/* Filtered Style Suggestions */}
                   {filteredStyleSuggestions.length > 0 ? (
                     filteredStyleSuggestions.map((style) => {
-                      const itemCount = allItems.filter(item => 
-                        item.clothing_item_style_tags?.some(tag => tag.style_tag.id === style.id)
-                      ).length;
+                      const itemCount = getItemCountForStyle(style.id);
                       
                       return (
                         <button
@@ -819,13 +822,14 @@ export default function Dashboard() {
             <span className="text-xs font-montserrat text-black">Upload</span>
           </button>
 
-          {/* AI Stylist */}
+          {/* AI Stylist - Temporarily disabled */}
           <button
-            onClick={() => navigate('/ai-stylist')}
+            onClick={() => toast.info('AI Stylist feature coming soon!')}
             className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+            title="Coming Soon"
           >
-            <Sparkles className="w-5 h-5 text-purple-600" />
-            <span className="text-xs font-montserrat text-purple-600">AI Style</span>
+            <Sparkles className="w-5 h-5 text-gray-400" />
+            <span className="text-xs font-montserrat text-gray-400">Soon</span>
           </button>
 
           {/* Manage Items (if items exist) */}
