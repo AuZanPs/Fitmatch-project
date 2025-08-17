@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Your Email - FitMatch</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Montserrat', Arial, sans-serif;
+            background: #faf9f7; /* mejiwoo-cream background */
+            line-height: 1.6;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+        }
+        
+        .header {
+            background: white;
+            padding: 40px 30px 30px 30px;
+            text-align: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #000000;
+        }
+        
+        .tagline {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            color: #6b7280; /* mejiwoo-gray */
+            margin: 0;
+            font-weight: 400;
+        }
+        
+        .content {
+            padding: 40px 40px;
+            text-align: center;
+        }
+        
+        .welcome-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            color: #000000;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .welcome-text {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 30px;
+            line-height: 1.6;
+            font-weight: 400;
+        }
+        
+        .features {
+            background: #faf9f7; /* mejiwoo-cream */
+            border-radius: 8px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: left;
+            border: 1px solid #f3f4f6;
+        }
+        
+        .features h3 {
+            font-family: 'Playfair Display', serif;
+            color: #000000;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .feature-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 16px;
+            padding: 0;
+        }
+        
+        .feature-bullet {
+            width: 6px;
+            height: 6px;
+            background: #000000;
+            border-radius: 50%;
+            margin-right: 16px;
+            margin-top: 8px;
+            flex-shrink: 0;
+        }
+        
+        .feature-text {
+            color: #6b7280;
+            font-size: 15px;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 400;
+            line-height: 1.5;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: #000000 !important;
+            color: white !important;
+            text-decoration: none !important;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 500;
+            font-size: 16px;
+            margin: 30px 0;
+            transition: background-color 0.2s ease;
+            border: none;
+        }
+        
+        .cta-button:hover {
+            background: #374151 !important;
+            color: white !important;
+            text-decoration: none !important;
+        }
+        
+        .cta-button:visited {
+            background: #000000 !important;
+            color: white !important;
+            text-decoration: none !important;
+        }
+        
+        .cta-button:active {
+            background: #000000 !important;
+            color: white !important;
+            text-decoration: none !important;
+        }
+        
+        .security-note {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+            font-size: 14px;
+            color: #6b7280;
+            font-family: 'Montserrat', sans-serif;
+            text-align: left;
+        }
+        
+        .security-note strong {
+            font-weight: 600;
+        }
+        
+        .footer {
+            background: #faf9f7;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .footer-text {
+            font-size: 12px;
+            color: #9ca3af;
+            margin: 0;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 400;
+        }
+        
+        .social-links {
+            margin: 20px 0;
+        }
+        
+        .social-link {
+            display: inline-block;
+            margin: 0 12px;
+            color: #6b7280;
+            text-decoration: none;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+        
+        .social-link:hover {
+            color: #000000;
+        }
+        
+        .link-fallback {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 30px;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 400;
+        }
+        
+        .link-fallback a {
+            color: #000000;
+            word-break: break-all;
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                border-radius: 0;
+            }
+            
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .header {
+                padding: 30px 20px 20px 20px;
+            }
+            
+            .welcome-title {
+                font-size: 24px;
+            }
+            
+            .features {
+                padding: 20px;
+            }
+            
+            .footer {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div style="padding: 20px;">
+        <div class="email-container">
+            <!-- Header -->
+            <div class="header">
+                <div class="logo">FitMatch</div>
+                <p class="tagline">Your AI-Powered Style Companion</p>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="content">
+                <h1 class="welcome-title">Welcome to FitMatch</h1>
+                
+                <p class="welcome-text">
+                    We're excited to have you join our community! To get started with your personalized style journey, 
+                    please confirm your email address by clicking the button below.
+                </p>
+                
+                <!-- Features Section -->
+                <div class="features">
+                    <h3>What awaits you</h3>
+                    
+                    <div class="feature-item">
+                        <div class="feature-bullet"></div>
+                        <div class="feature-text">Upload and organize your entire wardrobe digitally with our intuitive interface</div>
+                    </div>
+                    
+                    <div class="feature-item">
+                        <div class="feature-bullet"></div>
+                        <div class="feature-text">Get AI-powered outfit recommendations tailored specifically to your style preferences</div>
+                    </div>
+                    
+                    <div class="feature-item">
+                        <div class="feature-bullet"></div>
+                        <div class="feature-text">Discover new style combinations and outfit possibilities you never considered</div>
+                    </div>
+                    
+                    <div class="feature-item">
+                        <div class="feature-bullet"></div>
+                        <div class="feature-text">Access your complete digital wardrobe from anywhere, at any time</div>
+                    </div>
+                </div>
+                
+                <!-- CTA Button -->
+                <a href="{{ .ConfirmationURL }}" class="cta-button" style="background: #000000 !important; color: white !important; text-decoration: none !important; display: inline-block; padding: 16px 32px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-weight: 500; font-size: 16px; margin: 30px 0;">
+                    Confirm Your Email
+                </a>
+                
+                <!-- Security Note -->
+                <div class="security-note">
+                    <strong>Security Note:</strong> This confirmation link will expire in 24 hours. 
+                    If you didn't create a FitMatch account, you can safely ignore this email.
+                </div>
+                
+                <p class="link-fallback">
+                    Can't click the button? Copy and paste this link into your browser:<br>
+                    <a href="{{ .ConfirmationURL }}">{{ .ConfirmationURL }}</a>
+                </p>
+            </div>
+            
+            <!-- Footer -->
+            <div class="footer">
+                <div class="social-links">
+                    <a href="#" class="social-link">Website</a>
+                    <a href="#" class="social-link">Support</a>
+                    <a href="#" class="social-link">Privacy Policy</a>
+                </div>
+                
+                <p class="footer-text">
+                    © 2025 FitMatch. Made with care for fashion lovers everywhere.
+                </p>
+                
+                <p class="footer-text" style="margin-top: 10px;">
+                    You're receiving this email because you signed up for FitMatch.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

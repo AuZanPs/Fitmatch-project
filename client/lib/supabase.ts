@@ -144,39 +144,99 @@ export const getStyleTags = async () => {
 
 export const getUserClothingItems = async (userId: string) => {
   const client = checkSupabaseAvailable();
-  const { data, error } = await client
-    .from('clothing_items')
-    .select(`
-      *,
-      category:categories(*),
-      clothing_item_style_tags(
-        style_tag:style_tags(*)
-      )
-    `)
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
   
-  if (error) throw error;
-  return data;
+  try {
+    // Use the optimized function for better performance
+    const { data, error } = await client
+      .rpc('get_user_clothing_items_with_tags', { user_uuid: userId });
+    
+    if (error) {
+      // Fallback to original query if function doesn't exist yet
+      const fallbackResult = await client
+        .from('clothing_items')
+        .select(`
+          *,
+          category:categories(*),
+          clothing_item_style_tags(
+            style_tag:style_tags(*)
+          )
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      
+      if (fallbackResult.error) throw fallbackResult.error;
+      return fallbackResult.data;
+    }
+    
+    return data;
+  } catch (error) {
+    // Final fallback - simple query
+    const { data, error: simpleError } = await client
+      .from('clothing_items')
+      .select(`
+        *,
+        category:categories(*),
+        clothing_item_style_tags(
+          style_tag:style_tags(*)
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (simpleError) throw simpleError;
+    return data;
+  }
 };
 
 export const getClothingItemsByStyle = async (userId: string, styleTagId: number) => {
   const client = checkSupabaseAvailable();
-  const { data, error } = await client
-    .from('clothing_items')
-    .select(`
-      *,
-      category:categories(*),
-      clothing_item_style_tags!inner(
-        style_tag:style_tags(*)
-      )
-    `)
-    .eq('user_id', userId)
-    .eq('clothing_item_style_tags.style_tag_id', styleTagId)
-    .order('created_at', { ascending: false });
   
-  if (error) throw error;
-  return data;
+  try {
+    // Use the optimized function for better performance
+    const { data, error } = await client
+      .rpc('get_user_clothing_items_by_style', { 
+        user_uuid: userId, 
+        style_tag_id: styleTagId 
+      });
+    
+    if (error) {
+      // Fallback to original query if function doesn't exist yet
+      const fallbackResult = await client
+        .from('clothing_items')
+        .select(`
+          *,
+          category:categories(*),
+          clothing_item_style_tags!inner(
+            style_tag:style_tags(*)
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('clothing_item_style_tags.style_tag_id', styleTagId)
+        .order('created_at', { ascending: false });
+      
+      if (fallbackResult.error) throw fallbackResult.error;
+      return fallbackResult.data;
+    }
+    
+    return data;
+  } catch (error) {
+    // Final fallback - simple query with better indexing
+    const { data, error: simpleError } = await client
+      .from('clothing_items')
+      .select(`
+        *,
+        category:categories(*),
+        clothing_item_style_tags!inner(
+          style_tag:style_tags(*)
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('clothing_item_style_tags.style_tag_id', styleTagId)
+      .order('created_at', { ascending: false });
+    
+    if (simpleError) throw simpleError;
+    return data;
+  }
 };
 
 export const uploadClothingImage = async (file: File, userId: string) => {

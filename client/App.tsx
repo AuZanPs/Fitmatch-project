@@ -14,6 +14,7 @@ import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
 import AIStylist from "./pages/AIStylist";
 import ManageItems from "./pages/ManageItems";
+import EmailConfirmed from "./pages/EmailConfirmed";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -40,6 +41,7 @@ const App = () => (
                 <Route path="/upload" element={<Upload />} />
                 <Route path="/ai-stylist" element={<AIStylist />} />
                 <Route path="/manage-items" element={<ManageItems />} />
+                <Route path="/email-confirmed" element={<EmailConfirmed />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>

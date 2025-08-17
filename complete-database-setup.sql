@@ -225,8 +225,275 @@ UPDATE clothing_items
 SET brand = INITCAP(brand) 
 WHERE brand IS NOT NULL;
 
--- Success message
-SELECT 'Database setup completed successfully! You should now see categories and style tags in your app.' as message;
+-- 17. OPTIMIZE RLS POLICIES WITH PROPER auth.uid() PATTERN
+-- Replace existing policies with optimized versions that cache auth.uid()
+
+-- Drop and recreate clothing_items policies with optimization
+DROP POLICY IF EXISTS "Users can view their own clothing items" ON clothing_items;
+CREATE POLICY "Users can view their own clothing items" ON clothing_items
+  FOR SELECT USING ((SELECT auth.uid()) = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own clothing items" ON clothing_items;
+CREATE POLICY "Users can insert their own clothing items" ON clothing_items
+  FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own clothing items" ON clothing_items;
+CREATE POLICY "Users can update their own clothing items" ON clothing_items
+  FOR UPDATE USING ((SELECT auth.uid()) = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their own clothing items" ON clothing_items;
+CREATE POLICY "Users can delete their own clothing items" ON clothing_items
+  FOR DELETE USING ((SELECT auth.uid()) = user_id);
+
+-- Optimize style tags policies with cached auth.uid()
+DROP POLICY IF EXISTS "Users can view style tags for their clothing items" ON clothing_item_style_tags;
+CREATE POLICY "Users can view style tags for their clothing items" ON clothing_item_style_tags
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM clothing_items 
+      WHERE clothing_items.id = clothing_item_style_tags.clothing_item_id 
+      AND clothing_items.user_id = (SELECT auth.uid())
+    )
+  );
+
+DROP POLICY IF EXISTS "Users can insert style tags for their clothing items" ON clothing_item_style_tags;
+CREATE POLICY "Users can insert style tags for their clothing items" ON clothing_item_style_tags
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM clothing_items 
+      WHERE clothing_items.id = clothing_item_style_tags.clothing_item_id 
+      AND clothing_items.user_id = (SELECT auth.uid())
+    )
+  );
+
+DROP POLICY IF EXISTS "Users can update style tags for their clothing items" ON clothing_item_style_tags;
+CREATE POLICY "Users can update style tags for their clothing items" ON clothing_item_style_tags
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM clothing_items 
+      WHERE clothing_items.id = clothing_item_style_tags.clothing_item_id 
+      AND clothing_items.user_id = (SELECT auth.uid())
+    )
+  );
+
+DROP POLICY IF EXISTS "Users can delete style tags for their clothing items" ON clothing_item_style_tags;
+CREATE POLICY "Users can delete style tags for their clothing items" ON clothing_item_style_tags
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM clothing_items 
+      WHERE clothing_items.id = clothing_item_style_tags.clothing_item_id 
+      AND clothing_items.user_id = (SELECT auth.uid())
+    )
+  );
+
+-- 18. INDEX OPTIMIZATION - Remove unused indexes and keep only essential ones
+-- Drop unused indexes that were identified in performance analysis
+DROP INDEX IF EXISTS idx_clothing_items_user_id_category_id;
+DROP INDEX IF EXISTS idx_clothing_items_user_id_created_at;
+DROP INDEX IF EXISTS idx_clothing_item_style_tags_composite;
+DROP INDEX IF EXISTS idx_clothing_items_user_id_with_brand;
+DROP INDEX IF EXISTS idx_clothing_items_user_id_with_color;
+DROP INDEX IF EXISTS idx_clothing_items_user_id_efficient;
+
+-- Keep only the essential indexes (these were already created above but let's ensure they exist)
+CREATE INDEX IF NOT EXISTS idx_clothing_items_user_id ON clothing_items(user_id);
+CREATE INDEX IF NOT EXISTS idx_clothing_items_category_id ON clothing_items(category_id);
+CREATE INDEX IF NOT EXISTS idx_clothing_item_style_tags_clothing_item_id ON clothing_item_style_tags(clothing_item_id);
+CREATE INDEX IF NOT EXISTS idx_clothing_item_style_tags_style_tag_id ON clothing_item_style_tags(style_tag_id);
+
+-- 19. CREATE SECURE FUNCTIONS WITH PROPER SEARCH PATH
+-- These functions prevent function search path vulnerabilities
+
+-- Drop existing functions first to avoid return type conflicts
+DROP FUNCTION IF EXISTS get_user_clothing_items_with_tags(UUID);
+DROP FUNCTION IF EXISTS get_user_clothing_items_by_style(UUID, INTEGER);
+
+CREATE OR REPLACE FUNCTION get_user_clothing_items_with_tags(user_uuid UUID)
+RETURNS TABLE (
+  id UUID,
+  user_id UUID,
+  image_url TEXT,
+  category_id INTEGER,
+  category_name TEXT,
+  brand TEXT,
+  color TEXT,
+  created_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE,
+  style_tag_count BIGINT
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    ci.id,
+    ci.user_id,
+    ci.image_url,
+    ci.category_id,
+    c.name as category_name,
+    ci.brand,
+    ci.color,
+    ci.created_at,
+    ci.updated_at,
+    COUNT(cist.style_tag_id) as style_tag_count
+  FROM clothing_items ci
+  LEFT JOIN categories c ON ci.category_id = c.id
+  LEFT JOIN clothing_item_style_tags cist ON ci.id = cist.clothing_item_id
+  WHERE ci.user_id = user_uuid
+  GROUP BY ci.id, ci.user_id, ci.image_url, ci.category_id, c.name, ci.brand, ci.color, ci.created_at, ci.updated_at
+  ORDER BY ci.created_at DESC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION get_user_clothing_items_by_style(user_uuid UUID, style_tag_id INTEGER)
+RETURNS TABLE (
+  id UUID,
+  user_id UUID,
+  image_url TEXT,
+  category_id INTEGER,
+  category_name TEXT,
+  brand TEXT,
+  color TEXT,
+  created_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    ci.id,
+    ci.user_id,
+    ci.image_url,
+    ci.category_id,
+    c.name as category_name,
+    ci.brand,
+    ci.color,
+    ci.created_at,
+    ci.updated_at
+  FROM clothing_items ci
+  LEFT JOIN categories c ON ci.category_id = c.id
+  INNER JOIN clothing_item_style_tags cist ON ci.id = cist.clothing_item_id
+  WHERE ci.user_id = user_uuid AND cist.style_tag_id = get_user_clothing_items_by_style.style_tag_id
+  ORDER BY ci.created_at DESC;
+END;
+$$;
+
+-- 20. FIX SECURITY DEFINER VIEW ISSUE
+-- Completely remove the problematic view and create a replacement with security_invoker=on
+DROP VIEW IF EXISTS clothing_items_with_details CASCADE;
+
+-- Create view with explicit security_invoker=on to use caller's permissions (recommended by Supabase)
+-- This ensures the view uses the querying user's RLS policies, not the view creator's
+CREATE OR REPLACE VIEW clothing_items_with_details 
+WITH (security_invoker=on) AS
+SELECT 
+  ci.id,
+  ci.user_id,
+  ci.image_url,
+  ci.category_id,
+  c.name as category_name,
+  ci.brand,
+  ci.color,
+  ci.created_at,
+  ci.updated_at,
+  COALESCE(tag_counts.style_tag_count, 0) as style_tag_count
+FROM clothing_items ci
+LEFT JOIN categories c ON ci.category_id = c.id
+LEFT JOIN (
+  SELECT 
+    clothing_item_id,
+    COUNT(*) as style_tag_count
+  FROM clothing_item_style_tags
+  GROUP BY clothing_item_id
+) tag_counts ON ci.id = tag_counts.clothing_item_id;
+
+-- 21. ENSURE PROPER FUNCTION SEARCH PATH
+-- Update the trigger function to have secure search path
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER 
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+
+-- 22. OPTIMIZE STORAGE POLICIES FOR PERFORMANCE
+-- Simplify storage policies to reduce overhead
+DROP POLICY IF EXISTS "Users can upload their own images" ON storage.objects;
+DROP POLICY IF EXISTS "Users can view their own images" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their own images" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own images" ON storage.objects;
+DROP POLICY IF EXISTS "Public read access for clothing images" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload images" ON storage.objects;
+DROP POLICY IF EXISTS "Users can manage their own images" ON storage.objects;
+
+-- Create simplified storage policies
+CREATE POLICY "Public read access for clothing images" ON storage.objects
+  FOR SELECT USING (bucket_id = 'clothing-images');
+
+CREATE POLICY "Authenticated users can upload images" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'clothing-images' AND 
+    auth.role() = 'authenticated'
+  );
+
+CREATE POLICY "Users can manage their own images" ON storage.objects
+  FOR ALL USING (
+    bucket_id = 'clothing-images' AND 
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- 23. ANALYZE TABLES FOR QUERY OPTIMIZER
+-- Update table statistics for better query planning
+ANALYZE clothing_items;
+ANALYZE clothing_item_style_tags;
+ANALYZE categories;
+ANALYZE style_tags;
+
+-- 24. VERIFICATION QUERIES
+-- Check current table sizes and index usage
+SELECT 
+  schemaname,
+  tablename,
+  attname,
+  correlation
+FROM pg_stats 
+WHERE schemaname = 'public' 
+  AND tablename IN ('clothing_items', 'clothing_item_style_tags', 'categories', 'style_tags')
+ORDER BY tablename, attname;
+
+-- Show index information to verify optimization
+SELECT 
+  schemaname,
+  tablename,
+  indexname,
+  indexdef
+FROM pg_indexes 
+WHERE schemaname = 'public'
+  AND tablename IN ('clothing_items', 'clothing_item_style_tags', 'categories', 'style_tags')
+ORDER BY tablename, indexname;
+
+-- Show RLS policies to verify they're optimized
+SELECT schemaname, tablename, policyname, qual, with_check
+FROM pg_policies 
+WHERE schemaname = 'public'
+ORDER BY tablename, policyname;
+
+-- Success messages with next steps
+SELECT 'Database setup completed successfully! All performance and security issues addressed.' as message;
+SELECT 'Fixed: RLS policies, indexes, function search paths, security definer view, and storage policies.' as database_fixes;
+SELECT 'IMPORTANT: You still need to configure Auth security settings manually in Supabase Dashboard:' as auth_note;
+SELECT '1. Enable Multi-Factor Authentication (MFA)' as step_1;
+SELECT '2. Enable Leaked Password Protection' as step_2;
+SELECT 'Go to: Authentication > Settings in your Supabase Dashboard' as dashboard_location;
 
 -- Show current brand list for verification
 SELECT 'Current brands in database:' as info;
