@@ -58,10 +58,13 @@ export default function Dashboard() {
     if (!styleSearchQuery.trim()) return styleTags;
     
     const query = styleSearchQuery.toLowerCase();
-    return styleTags.filter(style => 
-      style.name.toLowerCase().includes(query)
-    );
-  }, [styleTags, styleSearchQuery]);
+    return styleTags.filter(style => {
+      // Only show styles that match the search AND have items
+      const matchesSearch = style.name.toLowerCase().includes(query);
+      const hasItems = getItemCountForStyle(style.id) > 0;
+      return matchesSearch && hasItems;
+    });
+  }, [styleTags, styleSearchQuery, getItemCountForStyle]);
 
   useEffect(() => {
     let mounted = true;
@@ -458,22 +461,32 @@ export default function Dashboard() {
                 >
                   All Styles ({allItems.length})
                 </button>
-                {styleTags.map((style) => {
-                  const itemCount = getItemCountForStyle(style.id);
-                  return (
-                    <button
-                      key={style.id}
-                      onClick={() => handleStyleChange(style)}
-                      className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-inter font-medium transition-colors text-xs sm:text-sm ${
-                        selectedStyle?.id === style.id
-                          ? 'bg-black text-white'
-                          : 'bg-gray-100 text-black hover:bg-gray-200'
-                      }`}
-                    >
-                      {style.name} ({itemCount})
-                    </button>
-                  );
-                })}
+                {[...styleTags]
+                  .sort((a, b) => {
+                    const countA = getItemCountForStyle(a.id);
+                    const countB = getItemCountForStyle(b.id);
+                    // Sort by item count (descending), then by name (ascending)
+                    if (countB !== countA) return countB - countA;
+                    return a.name.localeCompare(b.name);
+                  })
+                  .map((style) => {
+                    const itemCount = getItemCountForStyle(style.id);
+                    return (
+                      <button
+                        key={style.id}
+                        onClick={() => handleStyleChange(style)}
+                        className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-inter font-medium transition-colors text-xs sm:text-sm ${
+                          selectedStyle?.id === style.id
+                            ? 'bg-black text-white'
+                            : itemCount > 0 
+                              ? 'bg-gray-100 text-black hover:bg-gray-200'
+                              : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                        }`}
+                      >
+                        {style.name} ({itemCount})
+                      </button>
+                    );
+                  })}
               </div>
             </div>
           </div>
