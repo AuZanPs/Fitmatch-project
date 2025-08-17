@@ -12,11 +12,18 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:full": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "vite",
+    "dev:server": "node --import tsx/esm server/index.ts",
     "dev:vercel": "vercel dev",
     "build": "vite build",
-    "preview": "vite preview",
+    "build:full": "npm run build:client && npm run build:server",
+    "build:client": "vite build",
+    "build:server": "vite build --config vite.config.server.ts",
+    "start": "node dist/server/node-build.mjs",
     "test": "vitest --run",
-    "typecheck": "tsc --noEmit"
+    "format.fix": "prettier --write .",
+    "typecheck": "tsc"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",

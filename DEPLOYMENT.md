@@ -13,10 +13,10 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-#### Gemini AI Variable
-Get from Google AI Studio:
+#### Hugging Face AI Variable (Optional)
+Get from Hugging Face settings:
 ```bash
-GEMINI_API_KEY=your-gemini-api-key
+HUGGING_FACE_API_KEY=your-hugging-face-api-key
 ```
 
 #### Production Environment
@@ -57,7 +57,7 @@ After deployment:
 |------|-------|-------------|
 | `VITE_SUPABASE_URL` | `https://your-project.supabase.co` | Production, Preview, Development |
 | `VITE_SUPABASE_ANON_KEY` | `your-supabase-anon-key` | Production, Preview, Development |
-| `GEMINI_API_KEY` | `your-gemini-api-key` | Production, Preview, Development |
+| `HUGGING_FACE_API_KEY` | `your-hugging-face-api-key` | Production, Preview, Development |
 | `NODE_ENV` | `production` | Production |
 
 4. Click Save for each

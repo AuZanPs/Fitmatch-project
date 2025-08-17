@@ -1,18 +1,8 @@
 # FitMatch - AI-Powered Fashion Assistant
 
-FitMatch is an intelligent wardrobe management and styling application that helps you organize your clothing and create perfect outfit combinations.
+FitMatch is an intelligent wardrobe management and styling application that uses AI to help you create perfect outfit combinations from your existing clothing items.
 
 ## 🌟 Key Features
-
-### Wardrobe Management
-- Upload and categorize your clothing items
-- Organize by type, color, and brand
-- Visual wardrobe overview
-
-### Smart Dashboard
-- Quick access to your wardrobe
-- Upload new items easily
-- Intuitive navigation
 
 ### AI Styling Assistant (Coming Soon)
 - Smart outfit generation based on your wardrobe
@@ -25,17 +15,17 @@ FitMatch is an intelligent wardrobe management and styling application that help
 
 ## 🔧 Recent Updates (August 2025)
 
-### ✅ Architecture Simplification
-- Migrated to Vercel serverless functions
-- Simplified single-server development setup
-- Removed unnecessary Express server complexity
-- Cleaned up fallback methods and mock data
-
 ### ✅ Code Cleanup & Performance
 - Removed unnecessary console logs and test files
-- Streamlined development workflow
+- Simplified development workflow
 - Enhanced error handling and user feedback
 - Improved build process and deployment
+
+### ✅ UI/UX Improvements
+- Fixed asterisk formatting in style chat responses
+- Better loading states and notifications
+- Improved overall user experience
+- Personal stylist chat functionality
 
 ### Wardrobe Management
 - Visual wardrobe with photo uploads
@@ -59,7 +49,7 @@ FitMatch is an intelligent wardrobe management and styling application that help
 ### Prerequisites
 - Node.js 18+ and npm
 - Supabase account
-- Google Gemini API key
+- Hugging Face API key (for AI features)
 
 ### 1. Clone and Install
 ```bash
@@ -88,9 +78,9 @@ Copy the server environment template:
 cp server/.env.example server/.env
 ```
 
-Edit `server/.env` and add your API keys:
+Edit `.env.local` and add your API keys:
 ```bash
-GEMINI_API_KEY=your-google-gemini-api-key
+HUGGING_FACE_API_KEY=your-hugging-face-api-key
 ```
 
 Note: Never commit real API keys to Git. The repository contains placeholder values only.
@@ -111,10 +101,10 @@ Note: Never commit real API keys to Git. The repository contains placeholder val
 2. Create a bucket named `clothing-images`
 3. Set it to public access for image serving
 
-### 4. Google Gemini Setup
-1. Go to Google AI Studio
-2. Create a new API key
-3. Add it to your `server/.env` file
+### 4. Hugging Face Setup (Optional - for AI features)
+1. Go to Hugging Face and create an account
+2. Create a new API key in your settings
+3. Add it to your `.env.local` file
 
 ### 5. Start Development
 ```bash
@@ -133,8 +123,8 @@ Visit `http://localhost:8080` to start using FitMatch!
 - Sonner for toast notifications
 
 ### Backend
-- Express.js server with TypeScript
-- Google Gemini 1.5 Flash for AI features
+- Vercel serverless functions with TypeScript
+- Hugging Face API for AI features (in development)
 - Supabase for database, auth, and storage
 - Zod for input validation
 
@@ -227,7 +217,7 @@ In your Vercel dashboard (Settings → Environment Variables), add:
 |----------|-------|-------------|
 | `VITE_SUPABASE_URL` | Your Supabase URL | All |
 | `VITE_SUPABASE_ANON_KEY` | Your Supabase anon key | All |
-| `GEMINI_API_KEY` | Your Gemini API key | All |
+| `HUGGING_FACE_API_KEY` | Your Hugging Face API key | All |
 | `NODE_ENV` | `production` | Production |
 
 #### 4. Automatic GitHub Integration
@@ -342,9 +332,9 @@ npm install
 - Ensure storage bucket is created and public
 
 #### AI Features Not Working
-- Verify Gemini API key is valid
-- Check API quota limits
-- Review server logs for error details
+- Check if Hugging Face API key is valid
+- Verify API quota and rate limits
+- AI features are currently in development
 
 ### Getting Help
 - Check existing GitHub issues

@@ -394,15 +394,14 @@ export default function Dashboard() {
                 </button>
               )}
 
-              {/* AI Stylist Button - Temporarily disabled */}
+              {/* AI Stylist Button - Hide text on mobile */}
               <button
-                disabled
-                className="bg-gray-400 text-white px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg font-montserrat font-medium cursor-not-allowed flex items-center gap-1 sm:gap-2 text-xs sm:text-sm opacity-50"
-                title="AI Stylist - Coming Soon"
+                onClick={() => navigate('/ai-stylist')}
+                className="bg-purple-600 text-white px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg font-montserrat font-medium hover:bg-purple-700 transition-colors flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
               >
                 <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline lg:hidden">AI</span>
-                <span className="hidden lg:inline">AI Stylist (Coming Soon)</span>
+                <span className="hidden lg:inline">AI Stylist</span>
               </button>
               
               <button

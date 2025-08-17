@@ -149,7 +149,7 @@ While we don't have extensive automated tests yet, please:
 - [React Documentation](https://react.dev/)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)
 - [Supabase Docs](https://supabase.com/docs)
-- [Google Gemini API](https://ai.google.dev/docs)
+- [Hugging Face API](https://huggingface.co/docs/api-inference/index)
 - [TailwindCSS Docs](https://tailwindcss.com/docs)
 
 ## Questions?

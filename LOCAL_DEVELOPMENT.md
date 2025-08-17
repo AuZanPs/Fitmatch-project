@@ -9,7 +9,7 @@
 
 2. **Add your API keys to .env.local:**
    ```bash
-   # For future AI features
+   # For future AI features (optional)
    HUGGING_FACE_API_KEY=your_hugging_face_api_key
    
    # Get from: https://supabase.com/dashboard/project/YOUR_PROJECT/settings/api
@@ -41,29 +41,21 @@
 ## 🔧 Development Commands
 
 ```bash
-# Start frontend development server (Vite)
+# Start development server
 npm run dev
-
-# Start with Vercel functions (for API testing)
-npm run dev:vercel
 
 # Build for production
 npm run build
 
-# Preview production build  
+# Preview production build
 npm run preview
 
 # Type checking
-npm run typecheck
+npm run type-check
+
+# Lint code
+npm run lint
 ```
-
-## 🏗️ Project Architecture
-
-- **Frontend**: React + TypeScript + Vite
-- **Styling**: TailwindCSS + Custom CSS
-- **Backend**: Vercel Serverless Functions
-- **Database**: Supabase (PostgreSQL)
-- **Deployment**: Vercel
 
 ## 🌐 Environment Variables
 
@@ -72,15 +64,15 @@ npm run typecheck
 - `VITE_SUPABASE_ANON_KEY` - Your Supabase anonymous key
 
 ### Server-Side (API routes)
-- `GEMINI_API_KEY` - Your Google Gemini AI API key
+- `HUGGING_FACE_API_KEY` - Your Hugging Face API key (optional)
 - `NODE_ENV` - Environment (development/production)
 
 ## 📝 API Keys Setup
 
-### 1. Gemini AI API
-1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. Create a new API key
-3. Copy the key to `GEMINI_API_KEY` in `.env.local`
+### 1. Hugging Face API (Optional - for AI features)
+1. Go to [Hugging Face](https://huggingface.co/settings/tokens)
+2. Create a new API token
+3. Copy the token to `HUGGING_FACE_API_KEY` in `.env.local`
 
 ### 2. Supabase
 1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
@@ -91,9 +83,9 @@ npm run typecheck
 
 ## 🐛 Troubleshooting
 
-### API 500 Errors
-- Check if `GEMINI_API_KEY` is set correctly
-- Verify you haven't exceeded free tier quota (50 requests/day)
+### API Issues
+- Check if `HUGGING_FACE_API_KEY` is set correctly (if using AI features)
+- AI features are currently in development
 - Check browser console for detailed error messages
 
 ### Supabase Connection Issues
