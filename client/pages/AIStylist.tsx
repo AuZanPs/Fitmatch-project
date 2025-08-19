@@ -8,17 +8,14 @@ import {
   RefreshCw, 
   ArrowLeft, 
   Calendar, 
-  MessageCircle,
   ShoppingBag,
   TrendingUp,
   Lightbulb,
-  Send,
   Star,
   LogOut,
   Upload,
   Plus,
-  AlertTriangle,
-  Clock
+  AlertTriangle
 } from 'lucide-react';
 import { getUserClothingItems, signOut, getCurrentSession, onAuthStateChange } from '../lib/supabase';
 import type { ClothingItemWithTags } from '../lib/supabase';
@@ -96,14 +93,8 @@ export default function AIStylist() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'outfits' | 'chat' | 'analysis'>('outfits');
-  const [chatMessages, setChatMessages] = useState<Array<{
-    type: 'user' | 'ai';
-    message: string;
-    timestamp: Date;
-  }>>([]);
-  const [currentMessage, setCurrentMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [activeTab, setActiveTab] = useState<'outfits' | 'analysis'>('outfits');
+
   const [preferences, setPreferences] = useState<StylePreferences>({
     occasion: 'casual',
     weather: 'mild',
@@ -246,60 +237,7 @@ export default function AIStylist() {
     }
   }, [canGenerateOutfits, clothingItems, preferences]);
 
-  const sendMessage = useCallback(async () => {
-    if (!currentMessage.trim()) return;
 
-    const userMessage = {
-      type: 'user' as const,
-      message: currentMessage,
-      timestamp: new Date()
-    };
-
-    setChatMessages(prev => [...prev, userMessage]);
-    setCurrentMessage('');
-    setIsTyping(true);
-
-    try {
-      const response = await fetch('/api/styling-advice', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          question: userMessage.message,
-          wardrobe: clothingItems,
-          preferences: preferences
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get styling advice');
-      }
-
-      const data = await response.json();
-      
-      // Add a small delay to show the typing indicator for better UX
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const aiMessage = {
-        type: 'ai' as const,
-        message: data.advice,
-        timestamp: new Date()
-      };
-
-      setChatMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
-      console.error('Error getting styling advice:', error);
-      const errorMessage = {
-        type: 'ai' as const,
-        message: "I'm having trouble providing styling advice right now. Please try again later.",
-        timestamp: new Date()
-      };
-      setChatMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsTyping(false);
-    }
-  }, [currentMessage, clothingItems, preferences]);
 
   const analyzeWardrobe = useCallback(async () => {
     if (clothingItems.length === 0) {
@@ -440,7 +378,7 @@ export default function AIStylist() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Tab Navigation */}
         <div className="bg-white rounded-lg shadow-sm border p-2 mb-6">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setActiveTab('outfits')}
               className={`py-3 px-4 rounded-md font-montserrat font-medium transition-colors flex items-center justify-center gap-2 ${
@@ -450,18 +388,7 @@ export default function AIStylist() {
               }`}
             >
               <Wand2 className="w-4 h-4" />
-              Outfit Generator
-            </button>
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`py-3 px-4 rounded-md font-montserrat font-medium transition-colors flex items-center justify-center gap-2 ${
-                activeTab === 'chat' 
-                  ? 'bg-black text-white shadow-sm' 
-                  : 'text-mejiwoo-gray hover:text-black hover:bg-gray-50'
-              }`}
-            >
-              <MessageCircle className="w-4 h-4" />
-              Style Chat
+              AI Outfit Generator
             </button>
             <button
               onClick={() => setActiveTab('analysis')}
@@ -472,7 +399,7 @@ export default function AIStylist() {
               }`}
             >
               <TrendingUp className="w-4 h-4" />
-              Wardrobe Analysis
+              AI Wardrobe Analysis
             </button>
           </div>
         </div>
@@ -723,201 +650,7 @@ export default function AIStylist() {
             </div>
           )}
 
-          {/* Style Chat Tab */}
-          {activeTab === 'chat' && !isAnalyzing && (
-            <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-              <div className="p-6 border-b">
-                <h2 className="font-playfair text-xl font-semibold text-black flex items-center gap-2">
-                  <MessageCircle className="w-5 h-5 text-blue-500" />
-                  Chat with Your AI Stylist
-                </h2>
-                <p className="font-montserrat text-sm text-mejiwoo-gray mt-2">
-                  Ask questions about fashion, styling, or get personalized advice based on your {clothingItems.length} wardrobe items!
-                </p>
-              </div>
 
-              <div className="h-96 overflow-y-auto p-6 space-y-4">
-                {chatMessages.length === 0 && (
-                  <div className="text-center py-8">
-                    <MessageCircle className="w-8 h-8 text-mejiwoo-gray mx-auto mb-4" />
-                    <p className="font-montserrat text-mejiwoo-gray mb-4">
-                      Start a conversation! Ask me anything about styling, fashion trends, or outfit advice.
-                    </p>
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => setCurrentMessage("What colors look good with my wardrobe?")}
-                        className="block mx-auto font-montserrat text-sm text-black hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors"
-                      >
-                        💡 "What colors look good with my wardrobe?"
-                      </button>
-                      <button
-                        onClick={() => setCurrentMessage("How can I style my items for work?")}
-                        className="block mx-auto font-montserrat text-sm text-black hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors"
-                      >
-                        👔 "How can I style my items for work?"
-                      </button>
-                      <button
-                        onClick={() => setCurrentMessage("What's missing from my wardrobe?")}
-                        className="block mx-auto font-montserrat text-sm text-black hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors"
-                      >
-                        🛍️ "What's missing from my wardrobe?"
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {chatMessages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} mb-6`}
-                  >
-                    {message.type === 'user' ? (
-                      <div className="max-w-[80%] p-4 rounded-lg bg-black text-white">
-                        <p className="font-montserrat text-base whitespace-pre-wrap">{message.message}</p>
-                        <p className="font-montserrat text-xs mt-2 text-gray-300">
-                          {message.timestamp.toLocaleTimeString()}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="max-w-[90%] bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-                        {/* Header */}
-                        <div className="bg-gradient-to-r from-black to-gray-800 p-6">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                              <Sparkles className="w-6 h-6 text-black" />
-                            </div>
-                            <div>
-                              <h3 className="font-playfair text-xl font-bold text-white">AI Styling Advice</h3>
-                              <p className="font-montserrat text-sm text-gray-300">Personalized for you</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Content */}
-                        <div className="p-6">
-                          <div className="bg-gray-50 border-l-4 border-black p-6 rounded-r-lg">
-                            <div className="flex items-center gap-2 mb-3">
-                              <span className="w-2 h-2 bg-black rounded-full"></span>
-                              <h4 className="font-playfair text-lg font-bold text-black">Styling Recommendation</h4>
-                            </div>
-                            <div className="font-montserrat text-base text-gray-800 leading-relaxed">
-                              {/* Format the AI message with proper formatting */}
-                              {message.message.split('\n\n').map((paragraph, pIndex) => (
-                                <div key={pIndex} className={pIndex > 0 ? "mt-4" : ""}>
-                                  {paragraph.split('\n').map((line, lIndex) => {
-                                    // Handle bullet points with asterisks
-                                    if (line.trim().startsWith('*') && !line.includes('**')) {
-                                      const cleanText = line.trim().replace(/^\*+\s*/, ''); // Remove one or more asterisks at start
-                                      return (
-                                        <div key={lIndex} className="flex items-start gap-3 mt-2">
-                                          <span className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></span>
-                                          <span>{cleanText}</span>
-                                        </div>
-                                      );
-                                    }
-                                    // Handle bold headings (text between **)
-                                    else if (line.includes('**')) {
-                                      return (
-                                        <div key={lIndex} className={lIndex > 0 ? "mt-3" : ""}>
-                                          {line.split('**').map((part, partIndex) => (
-                                            partIndex % 2 === 1 ? (
-                                              <strong key={partIndex} className="font-semibold text-black">{part}</strong>
-                                            ) : (
-                                              <span key={partIndex}>{part.replace(/\*/g, '')}</span> // Remove any stray asterisks
-                                            )
-                                          ))}
-                                        </div>
-                                      );
-                                    }
-                                    // Regular text
-                                    else if (line.trim()) {
-                                      const cleanLine = line.replace(/\*/g, ''); // Remove any stray asterisks
-                                      return (
-                                        <p key={lIndex} className={lIndex > 0 ? "mt-2" : ""}>
-                                          {cleanLine}
-                                        </p>
-                                      );
-                                    }
-                                    return null;
-                                  })}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          
-                          {/* Footer */}
-                          <div className="mt-4 flex items-center justify-between">
-                            <p className="font-montserrat text-xs text-mejiwoo-gray">
-                              {message.timestamp.toLocaleTimeString()}
-                            </p>
-                            <div className="flex items-center gap-2 text-xs text-mejiwoo-gray">
-                              <Clock className="w-3 h-3" />
-                              <span>Generated just now</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {isTyping && (
-                  <div className="flex justify-start mb-6">
-                    <div className="max-w-[90%] bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-                      {/* Header */}
-                      <div className="bg-gradient-to-r from-black to-gray-800 p-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                            <Sparkles className="w-6 h-6 text-black animate-pulse" />
-                          </div>
-                          <div>
-                            <h3 className="font-playfair text-xl font-bold text-white">AI Styling Advice</h3>
-                            <p className="font-montserrat text-sm text-gray-300">Analyzing your request...</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Content */}
-                      <div className="p-6">
-                        <div className="bg-gray-50 border-l-4 border-black p-6 rounded-r-lg">
-                          <div className="flex items-center gap-4">
-                            <div className="flex space-x-1">
-                              <div className="w-3 h-3 bg-black rounded-full animate-bounce"></div>
-                              <div className="w-3 h-3 bg-black rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                              <div className="w-3 h-3 bg-black rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                            </div>
-                            <span className="font-montserrat text-base text-gray-800">Crafting personalized advice for you...</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-6 border-t">
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={currentMessage}
-                    onChange={(e) => setCurrentMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                    placeholder="Ask your AI stylist anything..."
-                    className="flex-1 px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent font-montserrat"
-                    disabled={isTyping}
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={!currentMessage.trim() || isTyping}
-                    className="bg-black text-white px-6 py-3 rounded-lg font-montserrat font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <Send className="w-4 h-4" />
-                    Send
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Wardrobe Analysis Tab */}
           {activeTab === 'analysis' && !isAnalyzing && (

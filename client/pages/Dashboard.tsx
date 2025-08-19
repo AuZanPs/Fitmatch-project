@@ -401,15 +401,15 @@ export default function Dashboard() {
                 </button>
               )}
 
-              {/* AI Stylist Button - Temporarily disabled */}
+              {/* AI Stylist Button */}
               <button
-                onClick={() => toast.info('AI Stylist feature coming soon!')}
-                className="bg-gray-400 text-white px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg font-montserrat font-medium hover:bg-gray-500 transition-colors flex items-center gap-1 sm:gap-2 text-xs sm:text-sm cursor-not-allowed"
-                title="Coming Soon"
+                onClick={() => navigate('/ai-stylist')}
+                className="bg-purple-600 text-white px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg font-montserrat font-medium hover:bg-purple-700 transition-colors flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
+                title="AI Personal Stylist"
               >
                 <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline lg:hidden">Soon</span>
-                <span className="hidden lg:inline">Coming Soon</span>
+                <span className="hidden sm:inline lg:hidden">AI</span>
+                <span className="hidden lg:inline">AI Stylist</span>
               </button>
               
               <button
@@ -822,14 +822,14 @@ export default function Dashboard() {
             <span className="text-xs font-montserrat text-black">Upload</span>
           </button>
 
-          {/* AI Stylist - Temporarily disabled */}
+          {/* AI Stylist */}
           <button
-            onClick={() => toast.info('AI Stylist feature coming soon!')}
+            onClick={() => navigate('/ai-stylist')}
             className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 transition-colors"
-            title="Coming Soon"
+            title="AI Personal Stylist"
           >
-            <Sparkles className="w-5 h-5 text-gray-400" />
-            <span className="text-xs font-montserrat text-gray-400">Soon</span>
+            <Sparkles className="w-5 h-5 text-purple-600" />
+            <span className="text-xs font-montserrat text-purple-600">AI</span>
           </button>
 
           {/* Manage Items (if items exist) */}

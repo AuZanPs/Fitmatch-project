@@ -49,7 +49,7 @@ FitMatch is an intelligent wardrobe management and styling application that uses
 ### Prerequisites
 - Node.js 18+ and npm
 - Supabase account
-- Hugging Face API key (for AI features)
+- Google Gemini API key (for AI features)
 
 ### 1. Clone and Install
 ```bash
@@ -80,7 +80,7 @@ cp server/.env.example server/.env
 
 Edit `.env.local` and add your API keys:
 ```bash
-HUGGING_FACE_API_KEY=your-hugging-face-api-key
+GEMINI_API_KEY=your-gemini-api-key
 ```
 
 Note: Never commit real API keys to Git. The repository contains placeholder values only.

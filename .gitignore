@@ -23,6 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
+.cursor/
+
 .config/
 
 # Environment files (real secrets)

@@ -1,29 +1,45 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { generateWithGemini, buildOutfitGenerationPrompt, isGeminiConfigured } from '../shared/gemini';
 
 interface OutfitRequest {
-  occasion?: string;
-  weather?: string;
-  colors?: string[];
-  style_preference?: string;
-  wardrobe_items?: string[];
+  items: any[];
+  preferences: {
+    occasion?: string;
+    weather?: string;
+    style?: string;
+    colors?: string[];
+  };
+  userProfile?: {
+    style_inspiration?: string;
+    lifestyle?: string;
+  };
+  maxOutfits?: number;
 }
 
 interface OutfitResponse {
   success: boolean;
   outfits?: {
+    id: string;
     name: string;
     description: string;
-    items: string[];
+    items: any[];
     occasion: string;
+    weather: string;
     confidence: number;
+    reasoning: string;
+    styling_tips?: string[];
+    color_analysis?: string;
+    trend_insights?: string;
   }[];
   error?: string;
   rate_limited?: boolean;
+  note?: string;
 }
 
-// Rate limiting for free tier
+// Enhanced rate limiting and request deduplication
 let requestCount = 0;
 let lastReset = Date.now();
+const pendingRequests = new Map<string, Promise<OutfitResponse>>();
 
 const checkRateLimit = (): boolean => {
   const now = Date.now();
@@ -34,13 +50,25 @@ const checkRateLimit = (): boolean => {
     lastReset = now;
   }
   
-  if (requestCount >= 25) { // 25 requests per hour for free tier
+  if (requestCount >= 60) { // Optimized limit for better performance
     return false;
   }
   
   requestCount++;
   return true;
 };
+
+// Create request fingerprint for deduplication
+function createRequestFingerprint(request: OutfitRequest): string {
+  const { items, preferences, userProfile } = request;
+  const itemsSignature = items.map(item => `${item.id}-${item.category}`).sort().join(',');
+  const prefsSignature = JSON.stringify({ 
+    occasion: preferences.occasion, 
+    weather: preferences.weather, 
+    style: preferences.style 
+  });
+  return `${itemsSignature}-${prefsSignature}`;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Only allow POST requests
@@ -51,303 +79,500 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // Check rate limit
-  if (!checkRateLimit()) {
-    return res.status(429).json({
-      success: false,
-      error: 'Rate limit exceeded. Try again in an hour.',
-      rate_limited: true
-    });
-  }
-
-  // Check API key
-  if (!process.env.HUGGINGFACE_API_KEY) {
-    return res.status(500).json({
-      success: false,
-      error: 'Hugging Face API key not configured'
-    });
-  }
+  const startTime = Date.now();
 
   try {
-    const { occasion = 'casual', weather = 'mild', colors = [], style_preference = 'comfortable', wardrobe_items = [] }: OutfitRequest = req.body;
+    const requestData: OutfitRequest = req.body;
+    const { items = [], preferences = {}, userProfile = {}, maxOutfits = 1 } = requestData;
 
-    // Create fashion prompt for Hugging Face (simplified for better results)
-    const prompt = `Fashion stylist recommendations for ${occasion} occasion in ${weather} weather. Style: ${style_preference}. 
-    
-Suggest outfit combinations using available items: ${wardrobe_items.join(', ') || 'typical wardrobe pieces'}.
-
-Perfect outfit would include:`;
-
-    // Call Hugging Face text generation model (with fallback)
-    let outfits;
-    
-    try {
-      const response = await fetch(
-        "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium",
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-            "Content-Type": "application/json"
-          },
-          method: "POST",
-          body: JSON.stringify({
-            inputs: prompt,
-            parameters: {
-              max_new_tokens: 150,
-              temperature: 0.8,
-              do_sample: true
-            }
-          })
-        }
-      );
-
-      if (!response.ok) {
-        console.warn(`Hugging Face API error: ${response.status}, falling back to smart generation`);
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const result = await response.json();
-      const generatedText = result[0]?.generated_text || '';
-      
-      // Parse or create structured outfit response
-      outfits = parseOutfitsFromText(generatedText, occasion, weather, style_preference);
-    } catch (error) {
-      console.log('🔄 Hugging Face API unavailable, using smart fallback generation');
-      // Use smart fallback generation when API is down
-      outfits = generateSmartOutfits(occasion, weather, style_preference);
+    // Validate input early
+    if (!items || !Array.isArray(items) || items.length < 3) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least 3 clothing items are required to generate outfits'
+      });
     }
 
-    return res.status(200).json({
-      success: true,
-      outfits
-    });
+    // Check API key
+    if (!isGeminiConfigured()) {
+      console.log('⚠️ Gemini not configured, using smart fallback');
+      const fallbackOutfits = generateSmartOutfits(items, 
+        preferences.occasion || 'casual',
+        preferences.weather || 'mild', 
+        preferences.style || 'comfortable'
+      );
+      
+      return res.status(200).json({
+        success: true,
+        outfits: fallbackOutfits,
+        note: 'Using smart recommendations - configure GEMINI_API_KEY for AI-powered suggestions'
+      });
+    }
+
+    // Request deduplication for performance
+    const requestFingerprint = createRequestFingerprint(requestData);
+    
+    // Check if we have a pending identical request
+    if (pendingRequests.has(requestFingerprint)) {
+      console.log('🔄 Deduplicating identical request');
+      const existingResponse = await pendingRequests.get(requestFingerprint)!;
+      return res.status(200).json(existingResponse);
+    }
+
+    // Check rate limit after deduplication
+    if (!checkRateLimit()) {
+      return res.status(429).json({
+        success: false,
+        error: 'Rate limit exceeded. Please wait before generating more outfits.',
+        rate_limited: true
+      });
+    }
+
+    // Create and cache the request promise
+    const requestPromise = processOutfitRequest(requestData);
+    pendingRequests.set(requestFingerprint, requestPromise);
+
+    try {
+      const response = await requestPromise;
+      const endTime = Date.now();
+      console.log(`⚡ Outfit generation completed in ${endTime - startTime}ms`);
+      
+      return res.status(200).json(response);
+    } finally {
+      // Clean up pending request
+      setTimeout(() => pendingRequests.delete(requestFingerprint), 1000);
+    }
 
   } catch (error) {
-    console.error('Outfit generation error:', error);
+    const endTime = Date.now();
+    console.error(`❌ Outfit generation failed in ${endTime - startTime}ms:`, error);
     
-    // Fallback outfits if API fails
+    // Fallback outfits if everything fails
     const fallbackOutfits = generateFallbackOutfits(req.body);
     
     return res.status(200).json({
       success: true,
       outfits: fallbackOutfits,
-      note: 'Using fallback recommendations due to AI service unavailability'
+      note: 'Using fallback recommendations due to service unavailability'
     });
   }
 }
 
-// Parse outfits from AI-generated text or create structured response
-function parseOutfitsFromText(text: string, occasion: string, weather: string, style: string) {
-  // Try to extract meaningful outfit suggestions, fallback to structured response
-  const outfits = [
-    {
-      name: `${style.charAt(0).toUpperCase() + style.slice(1)} ${occasion.charAt(0).toUpperCase() + occasion.slice(1)} Look`,
-      description: `Perfect for ${occasion} occasions in ${weather} weather. This outfit balances comfort and style.`,
-      items: getItemsForOccasion(occasion, weather),
-      occasion,
-      confidence: 0.85
-    },
-    {
-      name: `Alternative ${occasion.charAt(0).toUpperCase() + occasion.slice(1)} Style`,
-      description: `A versatile option that works well for ${weather} conditions with a ${style} aesthetic.`,
-      items: getAlternativeItems(occasion, weather),
-      occasion,
-      confidence: 0.80
-    },
-    {
-      name: `Statement ${occasion.charAt(0).toUpperCase() + occasion.slice(1)} Outfit`,
-      description: `Make an impression with this carefully curated look for ${occasion} settings.`,
-      items: getStatementItems(occasion, weather),
-      occasion,
-      confidence: 0.75
-    }
-  ];
-
-  return outfits;
-}
-
-// Generate appropriate items based on occasion and weather
-function getItemsForOccasion(occasion: string, weather: string): string[] {
-  const baseItems: { [key: string]: string[] } = {
-    casual: ['Comfortable jeans', 'Casual t-shirt', 'Sneakers', 'Light jacket'],
-    formal: ['Dress shirt', 'Dress pants', 'Dress shoes', 'Blazer'],
-    business: ['Button-down shirt', 'Trousers', 'Leather shoes', 'Optional tie'],
-    date: ['Nice blouse/shirt', 'Dark jeans or chinos', 'Stylish shoes', 'Accessories'],
-    party: ['Statement top', 'Stylish bottoms', 'Party shoes', 'Bold accessories']
-  };
-
-  let items = baseItems[occasion.toLowerCase()] || baseItems.casual;
-
-  // Adjust for weather
-  if (weather.includes('cold') || weather.includes('winter')) {
-    items = items.map(item => item === 'Light jacket' ? 'Warm coat' : item);
-    items.push('Scarf');
-  } else if (weather.includes('hot') || weather.includes('summer')) {
-    items = items.filter(item => !item.includes('jacket') && !item.includes('coat'));
-    items.push('Sunglasses');
-  }
-
-  return items;
-}
-
-function getAlternativeItems(occasion: string, weather: string): string[] {
-  const alternatives: { [key: string]: string[] } = {
-    casual: ['Chinos', 'Polo shirt', 'Canvas shoes', 'Cardigan'],
-    formal: ['Dress', 'Heels', 'Statement jewelry', 'Clutch'],
-    business: ['Pencil skirt', 'Blouse', 'Pumps', 'Blazer'],
-    date: ['Midi dress', 'Ankle boots', 'Denim jacket', 'Delicate jewelry'],
-    party: ['Cocktail dress', 'Heels', 'Statement earrings', 'Small purse']
-  };
-
-  return alternatives[occasion.toLowerCase()] || alternatives.casual;
-}
-
-function getStatementItems(occasion: string, weather: string): string[] {
-  const statement: { [key: string]: string[] } = {
-    casual: ['Designer jeans', 'Graphic tee', 'Statement sneakers', 'Baseball cap'],
-    formal: ['Three-piece suit', 'Dress shirt', 'Tie', 'Dress shoes'],
-    business: ['Power suit', 'Silk blouse', 'Professional heels', 'Watch'],
-    date: ['Little black dress', 'Heels', 'Bold lipstick', 'Clutch'],
-    party: ['Sequin top', 'Leather pants', 'Statement heels', 'Bold jewelry']
-  };
-
-  return statement[occasion.toLowerCase()] || statement.casual;
-}
-
-// Smart outfit generation with context awareness (same as server version)
-function generateSmartOutfits(occasion: string, weather: string, style: string): any[] {
-  const outfits: any[] = [];
+// Process outfit request with optimized flow
+async function processOutfitRequest(requestData: OutfitRequest): Promise<OutfitResponse> {
+  const { items, preferences = {}, userProfile = {} } = requestData;
   
-  // Get base outfit for the context
-  const baseItems = getContextualItems(occasion, weather, style);
-  const colors = getContextualColors(occasion, style);
-  const accessories = getContextualAccessories(occasion, weather);
-  
-  // Generate 3 distinct outfits with AI-like variation
-  for (let i = 0; i < 3; i++) {
-    const outfit = {
-      name: generateOutfitName(occasion, style, i),
-      description: generateOutfitDescription(occasion, weather, style, i),
-      items: generateOutfitItems(baseItems, colors, accessories, i),
-      occasion: occasion,
-      confidence: 0.85 + (Math.random() * 0.1 - 0.05) // 0.80-0.90 range
+  const occasion = preferences.occasion || userProfile.lifestyle || 'casual';
+  const weather = preferences.weather || 'mild';
+  const style = preferences.style || userProfile.style_inspiration || 'comfortable';
+
+  try {
+    console.log(`🤖 Generating optimized outfit: ${occasion}/${weather}/${style} with ${items.length} items`);
+    
+    const prompt = buildOutfitGenerationPrompt(items, occasion, weather, style);
+    const aiResponse = await generateWithGemini(prompt, {
+      temperature: 0.8,
+      maxOutputTokens: 1500,
+      useCache: true // Enable caching for better performance
+    });
+    
+    // Parse and validate the AI response
+    const outfits = parseGeminiOutfitResponse(aiResponse, items, occasion, weather, style);
+    
+    return {
+      success: true,
+      outfits
     };
-    outfits.push(outfit);
+    
+  } catch (error) {
+    console.log('🔄 AI generation failed, using intelligent fallback');
+    
+    // Use enhanced smart generation as fallback
+    const outfits = generateSmartOutfits(items, occasion, weather, style);
+    
+    return {
+      success: true,
+      outfits,
+      note: 'Generated using advanced styling algorithms'
+    };
+  }
+}
+
+// Parse Gemini's JSON response with enhanced ITEM_ID matching
+function parseGeminiOutfitResponse(aiResponse: string, items: any[], occasion: string, weather: string, style: string) {
+  try {
+    // Try to extract JSON from the response
+    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in response');
+    }
+    
+    const parsedResponse = JSON.parse(jsonMatch[0]);
+    
+    // Enhanced item matching using ITEM_ID system
+    const matchedItems = matchItemsByID(parsedResponse.items || [], items);
+    
+    // Validate we have a reasonable outfit
+    if (matchedItems.length < 2) {
+      console.log('Insufficient items matched, using smart fallback');
+      return generateSmartOutfits(items, occasion, weather, style);
+    }
+    
+    const outfit = {
+      id: `outfit-${Date.now()}`,
+      name: parsedResponse.name || generateOutfitName(occasion, style, matchedItems),
+      description: parsedResponse.description || generateOutfitDescription(matchedItems, occasion, weather, style),
+      items: matchedItems,
+      occasion,
+      weather,
+      confidence: Math.min(Math.max(parsedResponse.confidence || 0.85, 0.5), 1.0),
+      reasoning: parsedResponse.reasoning || generateOutfitReasoning(matchedItems, occasion, style),
+      styling_tips: Array.isArray(parsedResponse.styling_tips) ? parsedResponse.styling_tips.slice(0, 4) : 
+        generateStylingTips(matchedItems, occasion, weather),
+      color_analysis: parsedResponse.color_analysis || generateColorAnalysis(matchedItems),
+      trend_insights: `This ${style} aesthetic leverages your existing wardrobe pieces perfectly for ${occasion} occasions in ${weather} weather. The combination showcases excellent style coordination.`,
+      style_match_score: parsedResponse.style_match_score || calculateStyleMatchScore(matchedItems, style)
+    };
+    
+    return [outfit];
+    
+  } catch (error) {
+    console.error('Failed to parse Gemini response:', error);
+    // Fallback to smart generation with better error handling
+    return generateSmartOutfits(items, occasion, weather, style);
+  }
+}
+
+// Enhanced item matching using ITEM_ID system
+function matchItemsByID(suggestedItemIds: string[], wardrobeItems: any[]): any[] {
+  const matchedItems: any[] = [];
+  
+  for (const itemId of suggestedItemIds) {
+    // Extract index from ITEM_ID format (e.g., "ITEM_1" -> index 0)
+    const match = itemId.match(/ITEM_(\d+)/);
+    if (match) {
+      const index = parseInt(match[1]) - 1; // Convert to 0-based index
+      if (index >= 0 && index < wardrobeItems.length) {
+        const item = wardrobeItems[index];
+        if (!matchedItems.find(mi => mi.id === item.id)) {
+          matchedItems.push(item);
+        }
+      }
+    }
   }
   
-  return outfits;
+  // If AI didn't use proper ITEM_IDs, fall back to smart matching
+  if (matchedItems.length === 0 && suggestedItemIds.length > 0) {
+    return matchItemsFromWardrobe(suggestedItemIds, wardrobeItems);
+  }
+  
+  // Ensure we have a minimum viable outfit
+  if (matchedItems.length < 2) {
+    return selectBalancedOutfit(wardrobeItems, matchedItems);
+  }
+  
+  return matchedItems.slice(0, 4); // Limit to 4 items max
 }
 
-// Helper functions for smart generation
-function getContextualItems(occasion: string, weather: string, style: string): string[] {
-  const occasionMap: { [key: string]: string[] } = {
-    business: ['blazer', 'dress shirt', 'trousers', 'dress shoes', 'belt'],
-    casual: ['jeans', 't-shirt', 'sneakers', 'casual shirt', 'hoodie'],
-    formal: ['suit jacket', 'dress shirt', 'dress pants', 'dress shoes', 'tie'],
-    date: ['nice blouse', 'dark jeans', 'ankle boots', 'cardigan', 'accessories'],
-    party: ['cocktail dress', 'heels', 'statement jewelry', 'clutch', 'jacket']
-  };
+// Select a balanced outfit when AI matching is insufficient
+function selectBalancedOutfit(wardrobeItems: any[], existingItems: any[]): any[] {
+  const usedIds = new Set(existingItems.map(item => item.id));
+  const categories = categorizeWardrobe(wardrobeItems);
+  const selectedItems = [...existingItems];
   
-  const styleMap: { [key: string]: string[] } = {
-    professional: ['structured blazer', 'button-down shirt', 'tailored pants'],
-    comfortable: ['soft knit top', 'stretchy jeans', 'comfortable flats'],
-    trendy: ['cropped jacket', 'high-waisted pants', 'statement sneakers'],
-    classic: ['white shirt', 'navy blazer', 'straight-leg trousers'],
-    casual: ['cotton t-shirt', 'denim jacket', 'canvas sneakers']
-  };
+  // Try to get one item from each essential category
+  const essentialOrder = ['tops', 'bottoms', 'shoes', 'outerwear'];
   
-  const weatherMap: { [key: string]: string[] } = {
-    cold: ['wool coat', 'warm scarf', 'boots', 'sweater'],
-    mild: ['light jacket', 'long sleeves', 'closed shoes'],
-    warm: ['light top', 'breathable fabric', 'sandals', 'shorts'],
-    hot: ['tank top', 'linen shirt', 'sandals', 'sun hat']
-  };
+  for (const category of essentialOrder) {
+    if (selectedItems.length >= 4) break;
+    
+    const availableInCategory = categories[category]?.filter(item => !usedIds.has(item.id));
+    if (availableInCategory && availableInCategory.length > 0) {
+      const randomItem = availableInCategory[Math.floor(Math.random() * availableInCategory.length)];
+      selectedItems.push(randomItem);
+      usedIds.add(randomItem.id);
+    }
+  }
   
-  let items = occasionMap[occasion.toLowerCase()] || occasionMap.casual;
-  items = [...items, ...(styleMap[style.toLowerCase()] || [])];
-  items = [...items, ...(weatherMap[weather.toLowerCase()] || [])];
-  
-  return [...new Set(items)]; // Remove duplicates
+  return selectedItems.slice(0, 4);
 }
 
-function getContextualColors(occasion: string, style: string): string[] {
-  const colorSchemes: { [key: string]: string[] } = {
-    business: ['navy', 'charcoal', 'white', 'light blue'],
-    formal: ['black', 'navy', 'white', 'silver'],
-    casual: ['denim blue', 'white', 'gray', 'khaki'],
-    date: ['burgundy', 'blush', 'navy', 'cream'],
-    party: ['black', 'gold', 'deep red', 'emerald']
-  };
-  
-  return colorSchemes[occasion.toLowerCase()] || ['navy', 'white', 'gray'];
-}
-
-function getContextualAccessories(occasion: string, weather: string): string[] {
-  const accessories: string[] = [];
-  
-  if (occasion === 'business') accessories.push('watch', 'leather bag', 'minimal jewelry');
-  if (occasion === 'party') accessories.push('statement earrings', 'clutch', 'bold lipstick');
-  if (weather.includes('cold')) accessories.push('scarf', 'gloves');
-  if (weather.includes('sunny')) accessories.push('sunglasses', 'hat');
-  
-  return accessories;
-}
-
-function generateOutfitName(occasion: string, style: string, index: number): string {
-  const prefixes = ['Classic', 'Modern', 'Chic', 'Refined', 'Stylish'];
-  const suffixes = ['Look', 'Ensemble', 'Outfit', 'Style', 'Combination'];
-  
-  const prefix = prefixes[index % prefixes.length];
-  const occCap = occasion.charAt(0).toUpperCase() + occasion.slice(1);
-  const suffix = suffixes[index % suffixes.length];
-  
-  return `${prefix} ${occCap} ${suffix}`;
-}
-
-function generateOutfitDescription(occasion: string, weather: string, style: string, index: number): string {
-  const templates = [
-    `Perfect for ${occasion} occasions in ${weather} weather. This ${style} look balances comfort and sophistication.`,
-    `A versatile ${style} ensemble that works beautifully for ${occasion} settings when it's ${weather} outside.`,
-    `Thoughtfully curated ${style} pieces that create an impressive look for ${occasion} in ${weather} conditions.`
-  ];
-  
-  return templates[index % templates.length];
-}
-
-function generateOutfitItems(baseItems: string[], colors: string[], accessories: string[], index: number): string[] {
-  const itemCount = 4 + (index % 2); // 4-5 items per outfit
-  const selectedItems = baseItems.slice(0, itemCount);
-  const selectedColor = colors[index % colors.length];
-  const selectedAccessory = accessories[index % accessories.length] || 'minimal jewelry';
-  
-  // Add color and style variations
-  const styledItems = selectedItems.map((item, i) => {
-    if (i === 0) return `${selectedColor} ${item}`;
-    return item;
+// Generate outfit name based on items and context
+function generateOutfitName(occasion: string, style: string, items: any[]): string {
+  const hasFormaljwelry = items.some(item => {
+    const category = typeof item.category === 'string' ? item.category.toLowerCase() : item.category?.name?.toLowerCase() || '';
+    return category.includes('dress') || category.includes('suit');
   });
   
-  styledItems.push(selectedAccessory);
-  return styledItems;
+  const adjectives = {
+    casual: ['Relaxed', 'Effortless', 'Comfortable'],
+    formal: ['Elegant', 'Sophisticated', 'Polished'],
+    business: ['Professional', 'Sharp', 'Executive'],
+    party: ['Chic', 'Statement', 'Bold'],
+    date: ['Romantic', 'Charming', 'Stylish']
+  };
+  
+  const occasionAdj = adjectives[occasion.toLowerCase()] || adjectives.casual;
+  const randomAdj = occasionAdj[Math.floor(Math.random() * occasionAdj.length)];
+  
+  return `${randomAdj} ${occasion.charAt(0).toUpperCase() + occasion.slice(1)} ${style.charAt(0).toUpperCase() + style.slice(1)} Look`;
 }
 
-// Fallback outfits when AI service is unavailable
-function generateFallbackOutfits(request: OutfitRequest) {
-  const { occasion = 'casual', weather = 'mild', style_preference = 'comfortable' } = request;
+// Generate outfit description based on actual items
+function generateOutfitDescription(items: any[], occasion: string, weather: string, style: string): string {
+  const itemDescriptions = items.map(item => {
+    const category = typeof item.category === 'string' ? item.category : item.category?.name || 'piece';
+    return `${item.color || ''} ${category}`.trim();
+  });
+  
+  return `This carefully curated ${style} outfit combines your ${itemDescriptions.join(', ')} for a perfect ${occasion} look in ${weather} weather. Each piece complements the others to create a cohesive, stylish ensemble.`;
+}
+
+// Generate outfit reasoning based on actual items
+function generateOutfitReasoning(items: any[], occasion: string, style: string): string {
+  const categories = items.map(item => typeof item.category === 'string' ? item.category : item.category?.name || 'piece');
+  const colors = items.map(item => item.color).filter(Boolean);
+  
+  return `This ${style} combination works perfectly for ${occasion} because it balances ${categories.join(' and ')}${colors.length > 1 ? ` in coordinating ${colors.join(' and ')} tones` : ''}. The pieces are styled to complement each other while maintaining the desired aesthetic.`;
+}
+
+// Calculate style match score based on style tags
+function calculateStyleMatchScore(items: any[], targetStyle: string): number {
+  const allStyleTags = items.flatMap(item => 
+    item.clothing_item_style_tags?.map(tag => tag.style_tag?.name.toLowerCase()) || []
+  );
+  
+  if (allStyleTags.length === 0) return 0.7; // Default score
+  
+  const targetStyleLower = targetStyle.toLowerCase();
+  const matchingTags = allStyleTags.filter(tag => 
+    tag.includes(targetStyleLower) || targetStyleLower.includes(tag)
+  );
+  
+  const baseScore = matchingTags.length / allStyleTags.length;
+  return Math.min(Math.max(baseScore + 0.3, 0.5), 1.0); // Ensure reasonable range
+}
+
+// Match suggested items with actual wardrobe items
+function matchItemsFromWardrobe(suggestedItems: string[], wardrobeItems: any[]): any[] {
+  const matchedItems: any[] = [];
+  
+  for (const suggestion of suggestedItems) {
+    // Try to find the best matching item in the wardrobe
+    const matchedItem = wardrobeItems.find(item => {
+      const category = typeof item.category === 'string' ? item.category : item.category?.name || '';
+      const itemDescription = `${category} ${item.color || ''} ${item.brand || ''}`.toLowerCase();
+      const suggestionLower = suggestion.toLowerCase();
+      
+      return itemDescription.includes(suggestionLower.split(' ')[0]) || 
+             suggestionLower.includes(category.toLowerCase()) ||
+             (item.color && suggestionLower.includes(item.color.toLowerCase()));
+    });
+    
+    if (matchedItem && !matchedItems.find(mi => mi.id === matchedItem.id)) {
+      matchedItems.push(matchedItem);
+    }
+  }
+  
+  // If we don't have enough matches, fill with random items from different categories
+  const usedIds = new Set(matchedItems.map(item => item.id));
+  const remainingItems = wardrobeItems.filter(item => !usedIds.has(item.id));
+  
+  while (matchedItems.length < Math.min(4, wardrobeItems.length)) {
+    const randomItem = remainingItems[Math.floor(Math.random() * remainingItems.length)];
+    if (randomItem && !usedIds.has(randomItem.id)) {
+      matchedItems.push(randomItem);
+      usedIds.add(randomItem.id);
+      remainingItems.splice(remainingItems.indexOf(randomItem), 1);
+    } else {
+      break;
+    }
+  }
+  
+  return matchedItems.slice(0, 4); // Limit to 4 items max
+}
+
+// Smart outfit generation with actual wardrobe items
+function generateSmartOutfits(items: any[], occasion: string, weather: string, style: string): any[] {
+  // Categorize available items
+  const categorizedItems = categorizeWardrobe(items);
+  
+  // Select items for the outfit based on occasion and style
+  const selectedItems = selectItemsForOccasion(categorizedItems, occasion, weather, style);
+  
+  const outfit = {
+    id: `smart-outfit-${Date.now()}`,
+    name: `${style.charAt(0).toUpperCase() + style.slice(1)} ${occasion.charAt(0).toUpperCase() + occasion.slice(1)} Look`,
+    description: `A carefully curated ${style} outfit perfect for ${occasion} occasions in ${weather} weather. This combination uses your existing wardrobe pieces to create a cohesive, stylish look.`,
+    items: selectedItems,
+    occasion,
+    weather,
+    confidence: 0.80 + Math.random() * 0.15, // 0.80-0.95
+    reasoning: `This outfit combines ${selectedItems.map(item => {
+      const category = typeof item.category === 'string' ? item.category : item.category?.name || 'piece';
+      return `your ${item.color || ''} ${category}`.trim();
+    }).join(', ')} to create a balanced look that's appropriate for ${occasion} while maintaining your ${style} aesthetic.`,
+    styling_tips: generateStylingTips(selectedItems, occasion, weather),
+    color_analysis: generateColorAnalysis(selectedItems),
+    trend_insights: `The ${style} aesthetic is trending and works perfectly for ${occasion} settings. The color combination you have creates visual harmony while remaining versatile.`
+  };
+  
+  return [outfit];
+}
+
+// Categorize wardrobe items
+function categorizeWardrobe(items: any[]) {
+  const categories = {
+    tops: [] as any[],
+    bottoms: [] as any[],
+    outerwear: [] as any[],
+    shoes: [] as any[],
+    dresses: [] as any[],
+    accessories: [] as any[],
+    activewear: [] as any[],
+    other: [] as any[]
+  };
+  
+  items.forEach(item => {
+    const category = typeof item.category === 'string' ? item.category.toLowerCase() : item.category?.name?.toLowerCase() || 'other';
+    
+    if (category.includes('top') || category.includes('shirt') || category.includes('blouse') || category.includes('sweater')) {
+      categories.tops.push(item);
+    } else if (category.includes('bottom') || category.includes('pant') || category.includes('jean') || category.includes('short') || category.includes('skirt')) {
+      categories.bottoms.push(item);
+    } else if (category.includes('outerwear') || category.includes('jacket') || category.includes('coat') || category.includes('blazer')) {
+      categories.outerwear.push(item);
+    } else if (category.includes('shoe') || category.includes('boot') || category.includes('sandal') || category.includes('sneaker')) {
+      categories.shoes.push(item);
+    } else if (category.includes('dress')) {
+      categories.dresses.push(item);
+    } else if (category.includes('accessor')) {
+      categories.accessories.push(item);
+    } else if (category.includes('active') || category.includes('sport')) {
+      categories.activewear.push(item);
+    } else {
+      categories.other.push(item);
+    }
+  });
+  
+  return categories;
+}
+
+// Select items for specific occasion
+function selectItemsForOccasion(categorizedItems: any, occasion: string, weather: string, style: string): any[] {
+  const selectedItems: any[] = [];
+  
+  // Decide outfit structure based on occasion
+  const usesDress = occasion.includes('formal') || occasion.includes('date') || occasion.includes('party');
+  
+  if (usesDress && categorizedItems.dresses.length > 0) {
+    // Dress-based outfit
+    selectedItems.push(getRandomItem(categorizedItems.dresses));
+    if (categorizedItems.shoes.length > 0) {
+      selectedItems.push(getRandomItem(categorizedItems.shoes));
+    }
+    if ((weather.includes('cold') || occasion.includes('formal')) && categorizedItems.outerwear.length > 0) {
+      selectedItems.push(getRandomItem(categorizedItems.outerwear));
+    }
+  } else {
+    // Separates-based outfit
+    if (categorizedItems.tops.length > 0) {
+      selectedItems.push(getRandomItem(categorizedItems.tops));
+    }
+    if (categorizedItems.bottoms.length > 0) {
+      selectedItems.push(getRandomItem(categorizedItems.bottoms));
+    }
+    if (categorizedItems.shoes.length > 0) {
+      selectedItems.push(getRandomItem(categorizedItems.shoes));
+    }
+    if ((weather.includes('cold') || occasion.includes('business') || occasion.includes('formal')) && categorizedItems.outerwear.length > 0) {
+      selectedItems.push(getRandomItem(categorizedItems.outerwear));
+    }
+  }
+  
+  // Add accessories if available and appropriate
+  if (categorizedItems.accessories.length > 0 && selectedItems.length < 4) {
+    selectedItems.push(getRandomItem(categorizedItems.accessories));
+  }
+  
+  return selectedItems.filter(Boolean); // Remove any null/undefined items
+}
+
+// Get random item from array
+function getRandomItem(items: any[]): any {
+  if (items.length === 0) return null;
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+// Generate styling tips based on selected items
+function generateStylingTips(items: any[], occasion: string, weather: string): string[] {
+  const tips = [
+    'Ensure all pieces fit well for the most polished look',
+    'Pay attention to proportions when layering pieces'
+  ];
+  
+  // Add occasion-specific tips
+  if (occasion.includes('formal') || occasion.includes('business')) {
+    tips.push('Keep accessories minimal and elegant for a professional appearance');
+    tips.push('Make sure shoes are clean and in good condition');
+  } else if (occasion.includes('casual')) {
+    tips.push('Feel free to mix textures for added visual interest');
+    tips.push('Roll up sleeves or add casual accessories to personalize the look');
+  }
+  
+  // Add weather-specific tips
+  if (weather.includes('cold')) {
+    tips.push('Layer thoughtfully to stay warm while maintaining style');
+  } else if (weather.includes('hot')) {
+    tips.push('Choose breathable fabrics and lighter colors');
+  }
+  
+  return tips.slice(0, 4);
+}
+
+// Generate color analysis for selected items
+function generateColorAnalysis(items: any[]): string {
+  const colors = items.map(item => item.color).filter(Boolean);
+  
+  if (colors.length === 0) {
+    return 'The neutral tones in this outfit create a timeless, versatile look.';
+  }
+  
+  const neutrals = ['black', 'white', 'gray', 'grey', 'navy', 'beige', 'brown'];
+  const neutralCount = colors.filter(color => neutrals.some(n => color.toLowerCase().includes(n))).length;
+  
+  if (neutralCount >= colors.length * 0.7) {
+    return `The predominantly neutral palette (${colors.join(', ')}) creates a sophisticated, easy-to-wear combination that's perfect for multiple occasions.`;
+  } else {
+    return `The color combination of ${colors.join(', ')} creates visual interest while remaining balanced and coordinated.`;
+  }
+}
+
+// Fallback outfits when everything fails
+function generateFallbackOutfits(request: OutfitRequest): any[] {
+  const { preferences = {} } = request;
+  const occasion = preferences.occasion || 'casual';
+  const weather = preferences.weather || 'mild';
+  const style = preferences.style || 'comfortable';
   
   return [
     {
+      id: 'fallback-outfit-1',
       name: 'Classic Everyday Look',
-      description: 'A timeless combination that works for most casual occasions and is comfortable for daily wear.',
-      items: ['Well-fitted jeans', 'White t-shirt', 'Comfortable sneakers', 'Light cardigan'],
+      description: 'A timeless combination that works for most occasions and is comfortable for daily wear.',
+      items: [], // Will be empty since we don't have access to actual items
       occasion,
-      confidence: 0.90
-    },
-    {
-      name: 'Smart Casual Option',
-      description: 'Elevate your look with this versatile outfit that can transition from day to evening.',
-      items: ['Dark wash jeans', 'Button-down shirt', 'Loafers', 'Blazer'],
-      occasion,
-      confidence: 0.85
+      weather,
+      confidence: 0.85,
+      reasoning: 'This classic combination balances style and comfort, making it perfect for everyday wear.',
+      styling_tips: [
+        'Focus on fit - well-fitted basics always look more expensive',
+        'Add a structured piece like a blazer to elevate the look',
+        'Choose comfortable shoes that you can walk in all day',
+        'Keep accessories simple but purposeful'
+      ],
+      color_analysis: 'Neutral colors provide the most versatility and are easy to mix and match.',
+      trend_insights: `The ${style} aesthetic remains timeless and works perfectly for ${occasion} occasions.`
     }
   ];
 }
