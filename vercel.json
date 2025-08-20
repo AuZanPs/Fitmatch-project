@@ -1,5 +1,21 @@
 {
   "version": 2,
+  "functions": {
+    "api/cache-maintenance.ts": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "api/get-cached-suggestions.ts": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cache-maintenance",
+      "schedule": "0 3 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

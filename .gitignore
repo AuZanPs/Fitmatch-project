@@ -24,7 +24,7 @@ dist-ssr
 *.sw?
 
 .cursor/
-
+.kilocode/
 .config/
 
 # Environment files (real secrets)
@@ -73,3 +73,16 @@ package-lock.json
 yarn.lock
 
 .vercel
+CACHING-SYSTEM.md
+cleanup-old-cache.sql
+configure-cron-jobs.sql
+ENVIRONMENT-SETUP.md
+fix-cleanup-functions.sql
+fix-existing-policies.sql
+gemini-cache-schema.sql
+IMPLEMENTATION-GUIDE.md
+IMPLEMENTATION-TUTORIAL.md
+manual-cleanup-solution.md
+setup-caching-system.sql
+.github/copilot-instructions.md
+api/caching-integration.md
