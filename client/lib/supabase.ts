@@ -148,7 +148,7 @@ export const getUserClothingItems = async (userId: string) => {
   try {
     // Use the optimized function for better performance
     const { data, error } = await client
-      .rpc('get_user_clothing_items_with_tags', { user_uuid: userId });
+      .rpc('get_user_clothing_items_with_tags', { user_id: userId });
     
     if (error) {
       // Fallback to original query if function doesn't exist yet
@@ -195,7 +195,7 @@ export const getClothingItemsByStyle = async (userId: string, styleTagId: number
     // Use the optimized function for better performance
     const { data, error } = await client
       .rpc('get_user_clothing_items_by_style', { 
-        user_uuid: userId, 
+        user_id: userId, 
         style_tag_id: styleTagId 
       });
     
