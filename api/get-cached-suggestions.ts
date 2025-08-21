@@ -5,17 +5,17 @@ import {
   buildFashionPrompt,
   buildOutfitGenerationPrompt,
   buildWardrobeAnalysisPrompt,
-} from "../shared/gemini";
+} from "./shared/gemini";
 import {
   generateContextAwareCacheKey,
   getContextAwareCache,
   storeContextAwareCache,
-} from "../shared/context-aware-cache";
+} from "./shared/context-aware-cache";
 import {
   validateAIResponse,
   STRUCTURED_PROMPT_TEMPLATES,
-} from "../shared/response-schemas";
-import { batchAIRequest } from "../shared/request-batching";
+} from "./shared/response-schemas";
+import { batchAIRequest } from "./shared/request-batching";
 import crypto from "crypto";
 
 // Types

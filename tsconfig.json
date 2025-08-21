@@ -28,15 +28,14 @@
     /* Path mapping */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./client/*"],
-      "@shared/*": ["./shared/*"]
+      "@/*": ["./client/*"]
     }
   },
   "include": [
     "client/**/*.ts",
     "client/**/*.tsx",
     "client/types/**/*.d.ts",
-    "shared/**/*.ts",
+    "api/shared/**/*.ts",
     "vite.config.ts"
   ],
   "exclude": ["node_modules", "dist", "server", "**/*.js", "**/*.mjs"]
