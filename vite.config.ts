@@ -4,6 +4,9 @@ import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  optimizeDeps: {
+    exclude: ['lucide-react'],
+  },
   server: {
     host: "::",
     port: 8080,
