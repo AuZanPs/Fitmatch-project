@@ -1,94 +1,55 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { STRUCTURED_PROMPT_TEMPLATES } from "./response-schemas";
 
 // Initialize Gemini AI
 const getGeminiClient = () => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error('Gemini API key not configured. Please add GEMINI_API_KEY to your environment variables.');
+    throw new Error(
+      "Gemini API key not configured. Please add GEMINI_API_KEY to your environment variables.",
+    );
   }
   return new GoogleGenerativeAI(apiKey);
 };
 
-// Simple in-memory cache for performance optimization
-const responseCache = new Map<string, { response: string; timestamp: number }>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-// Performance-optimized Gemini generation with caching
-export const generateWithGemini = async (prompt: string, options?: {
-  temperature?: number;
-  maxOutputTokens?: number;
-  model?: string;
-  useCache?: boolean;
-}): Promise<string> => {
-  // Create cache key from prompt and options
-  const cacheKey = JSON.stringify({ prompt: prompt.substring(0, 200), options });
-  
-  // Check cache first (if enabled)
-  if (options?.useCache !== false) {
-    const cached = responseCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
-      console.log('🚀 Using cached Gemini response for performance');
-      return cached.response;
-    }
-  }
-  
+// Performance-optimized Gemini generation
+export const generateWithGemini = async (
+  prompt: string,
+  options?: {
+    temperature?: number;
+    maxOutputTokens?: number;
+    model?: string;
+  },
+): Promise<string> => {
   try {
     const genAI = getGeminiClient();
-    const model = genAI.getGenerativeModel({ 
-      model: options?.model || 'gemini-1.5-flash', // Fast model for better performance
+    const model = genAI.getGenerativeModel({
+      model: options?.model || "gemini-1.5-flash", // Fast model for better performance
       generationConfig: {
         temperature: options?.temperature || 0.7,
-        maxOutputTokens: options?.maxOutputTokens || 1200, // Slightly increased for better responses
-      }
+        maxOutputTokens: options?.maxOutputTokens || 1200,
+      },
     });
 
-    console.log(`🤖 Generating content with ${options?.model || 'gemini-1.5-flash'}`);
     const startTime = Date.now();
-    
+
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    
+
     const endTime = Date.now();
     console.log(`✅ Gemini response generated in ${endTime - startTime}ms`);
-    
-    // Cache successful responses
-    if (text && options?.useCache !== false) {
-      responseCache.set(cacheKey, {
-        response: text,
-        timestamp: Date.now()
-      });
-      
-      // Cleanup old cache entries to prevent memory issues
-      cleanupCache();
-    }
-    
+
     return text;
-  } catch (error) {
-    console.error('Gemini API error:', error);
-    throw new Error(`Failed to generate content with Gemini: ${error.message}`);
+  } catch (error: any) {
+    console.error("Gemini API error:", error);
+    throw new Error(
+      `Failed to generate content with Gemini: ${error?.message || "Unknown error"}`,
+    );
   }
 };
 
-// Cleanup old cache entries to prevent memory leaks
-function cleanupCache() {
-  const now = Date.now();
-  const keysToDelete: string[] = [];
-  
-  for (const [key, value] of responseCache.entries()) {
-    if (now - value.timestamp > CACHE_DURATION) {
-      keysToDelete.push(key);
-    }
-  }
-  
-  keysToDelete.forEach(key => responseCache.delete(key));
-}
-
-// Clear cache manually if needed
-export const clearGeminiCache = () => {
-  responseCache.clear();
-  console.log('🧹 Gemini response cache cleared');
-};
+// Note: Caching is now handled by the context-aware cache system
 
 // Check if Gemini is properly configured
 export const isGeminiConfigured = (): boolean => {
@@ -96,23 +57,29 @@ export const isGeminiConfigured = (): boolean => {
 };
 
 // Build a fashion-focused prompt for Gemini
-export const buildFashionPrompt = (basePrompt: string, context?: {
-  wardrobe?: any[];
-  occasion?: string;
-  weather?: string;
-  style?: string;
-  preferences?: any;
-}): string => {
+export const buildFashionPrompt = (
+  basePrompt: string,
+  context?: {
+    wardrobe?: any[];
+    occasion?: string;
+    weather?: string;
+    style?: string;
+    preferences?: any;
+  },
+): string => {
   let prompt = `You are FitMatch AI, a professional fashion stylist and wardrobe consultant with extensive expertise in personal styling, color theory, and fashion trends. You provide personalized, practical, and actionable fashion advice.
 
 ${basePrompt}`;
 
   if (context) {
-    prompt += '\n\n**Context:**';
+    prompt += "\n\n**Context:**";
     if (context.wardrobe && context.wardrobe.length > 0) {
-      prompt += `\n- User's wardrobe: ${context.wardrobe.length} items including ${context.wardrobe.map(item => 
-        `${item.category || 'item'} (${item.color || 'unknown color'})${item.brand ? ' by ' + item.brand : ''}`
-      ).join(', ')}`;
+      prompt += `\n- User's wardrobe: ${context.wardrobe.length} items including ${context.wardrobe
+        .map(
+          (item) =>
+            `${item.category || "item"} (${item.color || "unknown color"})${item.brand ? " by " + item.brand : ""}`,
+        )
+        .join(", ")}`;
     }
     if (context.occasion) prompt += `\n- Occasion: ${context.occasion}`;
     if (context.weather) prompt += `\n- Weather: ${context.weather}`;
@@ -138,28 +105,36 @@ export const buildOutfitGenerationPrompt = (
   items: any[],
   occasion: string,
   weather: string,
-  style: string
+  style: string,
 ): string => {
   // Categorize items intelligently for better outfit creation
   const categorizedItems = categorizeItemsForOutfit(items);
-  
+
   // Create detailed wardrobe description with style intelligence
-  const wardrobeDescription = items.map((item, index) => {
-    const category = typeof item.category === 'string' ? item.category : item.category?.name || 'item';
-    const styleTags = item.clothing_item_style_tags?.map(tag => tag.style_tag?.name).join(', ') || '';
-    const itemId = `ITEM_${index + 1}`;
-    return `${itemId}: ${category}${item.color ? ` in ${item.color}` : ''}${item.brand ? ` by ${item.brand}` : ''}${styleTags ? ` (styles: ${styleTags})` : ''}`;
-  }).join('\n');
+  const wardrobeDescription = items
+    .map((item, index) => {
+      const category =
+        typeof item.category === "string"
+          ? item.category
+          : item.category?.name || "item";
+      const styleTags =
+        item.clothing_item_style_tags
+          ?.map((tag) => tag.style_tag?.name)
+          .join(", ") || "";
+      const itemId = `ITEM_${index + 1}`;
+      return `${itemId}: ${category}${item.color ? ` in ${item.color}` : ""}${item.brand ? ` by ${item.brand}` : ""}${styleTags ? ` (styles: ${styleTags})` : ""}`;
+    })
+    .join("\n");
 
   // Build style preferences based on existing style tags
   const stylePreferences = extractStylePreferences(items, style);
-  
+
   return buildFashionPrompt(
     `Create a cohesive outfit combination from the user's wardrobe for a ${occasion} occasion in ${weather} weather with a ${style} aesthetic.
 
 **WARDROBE ANALYSIS:**
 - Total items: ${items.length}
-- Categories available: ${Object.keys(categorizedItems).join(', ')}
+- Categories available: ${Object.keys(categorizedItems).join(", ")}
 - Style preferences detected: ${stylePreferences}
 
 **AVAILABLE WARDROBE ITEMS:**
@@ -172,25 +147,13 @@ ${wardrobeDescription}
 4. Match the occasion and weather requirements
 5. Prioritize items with matching style tags
 
-**Required Response Format (JSON):**
-{
-  "name": "Creative outfit name reflecting the style and occasion",
-  "description": "Why this specific combination works for the user",
-  "items": ["ITEM_1", "ITEM_3", "ITEM_7"], // Reference actual ITEM_IDs
-  "reasoning": "Detailed explanation of styling choices and item synergy",
-  "styling_tips": ["Specific actionable styling advice", "How to wear/adjust pieces", "Accessorizing suggestions"],
-  "color_analysis": "How the selected colors work together harmoniously",
-  "confidence": 0.85,
-  "style_match_score": 0.90
-}
-
-**CRITICAL:** Reference items by their exact ITEM_ID (e.g., ITEM_1, ITEM_3). Ensure the outfit is practical and cohesive.`,
+Create outfits that are appropriate for the occasion, suitable for the weather, and match the requested style preference. Consider color coordination, seasonal appropriateness, and practical styling.`,
     {
       wardrobe: items,
       occasion,
       weather,
-      style
-    }
+      style,
+    },
   );
 };
 
@@ -202,138 +165,152 @@ function categorizeItemsForOutfit(items: any[]) {
     dresses: [],
     outerwear: [],
     shoes: [],
-    accessories: []
+    accessories: [],
   };
-  
-  items.forEach(item => {
-    const categoryName = typeof item.category === 'string' 
-      ? item.category.toLowerCase() 
-      : item.category?.name?.toLowerCase() || 'other';
-    
-    if (categoryName.includes('top') || categoryName.includes('shirt') || categoryName.includes('blouse') || categoryName.includes('sweater')) {
+
+  items.forEach((item) => {
+    const categoryName =
+      typeof item.category === "string"
+        ? item.category.toLowerCase()
+        : item.category?.name?.toLowerCase() || "other";
+
+    if (
+      categoryName.includes("top") ||
+      categoryName.includes("shirt") ||
+      categoryName.includes("blouse") ||
+      categoryName.includes("sweater")
+    ) {
       categories.tops.push(item);
-    } else if (categoryName.includes('bottom') || categoryName.includes('pant') || categoryName.includes('jean') || categoryName.includes('short') || categoryName.includes('skirt')) {
+    } else if (
+      categoryName.includes("bottom") ||
+      categoryName.includes("pant") ||
+      categoryName.includes("jean") ||
+      categoryName.includes("short") ||
+      categoryName.includes("skirt")
+    ) {
       categories.bottoms.push(item);
-    } else if (categoryName.includes('dress')) {
+    } else if (categoryName.includes("dress")) {
       categories.dresses.push(item);
-    } else if (categoryName.includes('outerwear') || categoryName.includes('jacket') || categoryName.includes('coat') || categoryName.includes('blazer')) {
+    } else if (
+      categoryName.includes("outerwear") ||
+      categoryName.includes("jacket") ||
+      categoryName.includes("coat") ||
+      categoryName.includes("blazer")
+    ) {
       categories.outerwear.push(item);
-    } else if (categoryName.includes('shoe') || categoryName.includes('boot') || categoryName.includes('sandal') || categoryName.includes('sneaker')) {
+    } else if (
+      categoryName.includes("shoe") ||
+      categoryName.includes("boot") ||
+      categoryName.includes("sandal") ||
+      categoryName.includes("sneaker")
+    ) {
       categories.shoes.push(item);
-    } else if (categoryName.includes('accessor')) {
+    } else if (categoryName.includes("accessor")) {
       categories.accessories.push(item);
     }
   });
-  
+
   return categories;
 }
 
 // Extract style preferences from existing items
 function extractStylePreferences(items: any[], preferredStyle: string): string {
-  const styleTags = items.flatMap(item => 
-    item.clothing_item_style_tags?.map(tag => tag.style_tag?.name) || []
+  const styleTags = items.flatMap(
+    (item) =>
+      item.clothing_item_style_tags?.map((tag) => tag.style_tag?.name) || [],
   );
-  
-  const styleCount = styleTags.reduce((acc, style) => {
-    acc[style] = (acc[style] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
+
+  const styleCount = styleTags.reduce(
+    (acc, style) => {
+      acc[style] = (acc[style] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
   const topStyles = Object.entries(styleCount)
-    .sort(([,a], [,b]) => (b as number) - (a as number))
+    .sort(([, a], [, b]) => (b as number) - (a as number))
     .slice(0, 3)
     .map(([style]) => style);
-  
-  const preferences = [preferredStyle, ...topStyles].filter(Boolean).slice(0, 3);
-  return preferences.join(', ') || preferredStyle;
-};
+
+  const preferences = [preferredStyle, ...topStyles]
+    .filter(Boolean)
+    .slice(0, 3);
+  return preferences.join(", ") || preferredStyle;
+}
 
 // Build enhanced wardrobe analysis prompt for Gemini with deep insights
-export const buildWardrobeAnalysisPrompt = (items: any[], preferences?: any): string => {
+export const buildWardrobeAnalysisPrompt = (
+  items: any[],
+  preferences?: any,
+): string => {
   // Advanced categorization with detailed analysis
   const categorizedItems = categorizeItemsForOutfit(items);
   const styleAnalysis = analyzeStyleConsistency(items);
   const colorAnalysis = analyzeColorPalette(items);
-  
-  const categories = items.reduce((acc, item) => {
-    const category = typeof item.category === 'string' ? item.category : item.category?.name || 'unknown';
-    acc[category] = (acc[category] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
 
-  const brands = items.reduce((acc, item) => {
-    if (item.brand) {
-      acc[item.brand] = (acc[item.brand] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
+  const categories = items.reduce(
+    (acc, item) => {
+      const category =
+        typeof item.category === "string"
+          ? item.category
+          : item.category?.name || "unknown";
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
+  const brands = items.reduce(
+    (acc, item) => {
+      if (item.brand) {
+        acc[item.brand] = (acc[item.brand] || 0) + 1;
+      }
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   return buildFashionPrompt(
     `Perform a comprehensive wardrobe analysis as an expert fashion consultant. Focus on actionable insights and personalized recommendations.
 
 **WARDROBE OVERVIEW:**
 - Total Items: ${items.length}
-- Categories Available: ${Object.keys(categorizedItems).map(cat => `${cat} (${categorizedItems[cat].length})`).join(', ')}
-- Primary Colors: ${colorAnalysis.dominant.join(', ')}
+- Categories Available: ${Object.keys(categorizedItems)
+      .map((cat) => `${cat} (${categorizedItems[cat].length})`)
+      .join(", ")}
+- Primary Colors: ${colorAnalysis.dominant.join(", ")}
 - Style Coherence: ${styleAnalysis.consistency}%
-- Key Brands: ${Object.entries(brands).slice(0, 3).map(([brand, count]) => `${brand} (${count})`).join(', ')}
+- Key Brands: ${Object.entries(brands)
+      .slice(0, 3)
+      .map(([brand, count]) => `${brand} (${count})`)
+      .join(", ")}
 
 **DETAILED STYLE ANALYSIS:**
-- Most Common Styles: ${styleAnalysis.topStyles.join(', ')}
+- Most Common Styles: ${styleAnalysis.topStyles.join(", ")}
 - Style Distribution: ${styleAnalysis.distribution}
-- Missing Style Categories: ${styleAnalysis.gaps.join(', ')}
+- Missing Style Categories: ${styleAnalysis.gaps.join(", ")}
 
 **COLOR PALETTE ANALYSIS:**
-- Dominant Colors: ${colorAnalysis.dominant.join(', ')}
-- Supporting Colors: ${colorAnalysis.supporting.join(', ')}
+- Dominant Colors: ${colorAnalysis.dominant.join(", ")}
+- Supporting Colors: ${colorAnalysis.supporting.join(", ")}
 - Color Harmony Score: ${colorAnalysis.harmonyScore}/100
-- Missing Neutrals: ${colorAnalysis.missingNeutrals.join(', ')}
+- Missing Neutrals: ${colorAnalysis.missingNeutrals.join(", ")}
 
 **WARDROBE INVENTORY:**
-${items.map((item, index) => {
-  const category = typeof item.category === 'string' ? item.category : item.category?.name || 'item';
-  const styleTags = item.clothing_item_style_tags?.map(tag => tag.style_tag?.name).join(', ') || 'untagged';
-  return `${index + 1}. ${category}${item.color ? ` - ${item.color}` : ''}${item.brand ? ` by ${item.brand}` : ''} [${styleTags}]`;
-}).join('\n')}
-
-**REQUIRED ANALYSIS FORMAT (JSON):**
-{
-  "overall_assessment": "Professional assessment focusing on strengths and strategic opportunities",
-  "strengths": ["Specific wardrobe strengths with examples", "Color coordination positives", "Versatile pieces identified"],
-  "gaps": ["Specific missing categories", "Color gaps that limit outfit options", "Style inconsistencies"],
-  "color_analysis": {
-    "dominant_colors": ["most frequent colors"],
-    "missing_colors": ["essential missing colors"],
-    "harmony_score": ${colorAnalysis.harmonyScore},
-    "recommendations": "Specific color addition advice"
-  },
-  "style_consistency": {
-    "score": ${styleAnalysis.consistency},
-    "description": "How cohesive the style choices are"
-  },
-  "versatility": {
-    "score": "0-100 based on mix-and-match potential",
-    "possible_outfits": "realistic outfit combinations possible",
-    "description": "Assessment of outfit creation flexibility"
-  },
-  "investment_priorities": [
-    {
-      "item": "Specific item recommendation",
-      "reason": "Why this item fills a strategic gap",
-      "impact": "How it multiplies outfit options",
-      "priority": "1-5 ranking"
-    }
-  ],
-  "organization_tips": ["Actionable wardrobe organization advice", "Storage optimization", "Seasonal rotation tips"],
-  "styling_opportunities": [
-    {
-      "outfit_name": "Specific outfit suggestion",
-      "items": ["existing items that work together"],
-      "occasion": "when to wear this combination",
-      "styling_notes": "how to style these pieces"
-    }
-  ]
-}
+${items
+  .map((item, index) => {
+    const category =
+      typeof item.category === "string"
+        ? item.category
+        : item.category?.name || "item";
+    const styleTags =
+      item.clothing_item_style_tags
+        ?.map((tag) => tag.style_tag?.name)
+        .join(", ") || "untagged";
+    return `${index + 1}. ${category}${item.color ? ` - ${item.color}` : ""}${item.brand ? ` by ${item.brand}` : ""} [${styleTags}]`;
+  })
+  .join("\n")}
 
 **ANALYSIS PRIORITIES:**
 1. Identify high-impact investment pieces that multiply outfit options
@@ -346,89 +323,119 @@ ${items.map((item, index) => {
 **FOCUS ON ACTIONABILITY:** Every recommendation should be specific, achievable, and directly improve the user's styling options.`,
     {
       wardrobe: items,
-      preferences
-    }
+      preferences,
+    },
   );
 };
 
 // Analyze style consistency across wardrobe items
 function analyzeStyleConsistency(items: any[]) {
-  const allStyleTags = items.flatMap(item => 
-    item.clothing_item_style_tags?.map(tag => tag.style_tag?.name) || []
+  const allStyleTags = items.flatMap(
+    (item) =>
+      item.clothing_item_style_tags?.map((tag) => tag.style_tag?.name) || [],
   );
-  
+
   if (allStyleTags.length === 0) {
-    return { consistency: 60, topStyles: ['casual'], distribution: 'mixed', gaps: ['formal', 'business'] };
+    return {
+      consistency: 60,
+      topStyles: ["casual"],
+      distribution: "mixed",
+      gaps: ["formal", "business"],
+    };
   }
-  
-  const styleCount = allStyleTags.reduce((acc, style) => {
-    acc[style] = (acc[style] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
+
+  const styleCount = allStyleTags.reduce(
+    (acc, style) => {
+      acc[style] = (acc[style] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
   const topStyles = Object.entries(styleCount)
-    .sort(([,a], [,b]) => (b as number) - (a as number))
+    .sort(([, a], [, b]) => (b as number) - (a as number))
     .slice(0, 3)
     .map(([style]) => style);
-  
+
   const totalStyles = Object.keys(styleCount).length;
-  const dominantStyleCount = Math.max(...Object.values(styleCount) as number[]);
-  const consistency = Math.round((dominantStyleCount / allStyleTags.length) * 100);
-  
-  const commonStyles = ['casual', 'formal', 'business', 'party'];
-  const gaps = commonStyles.filter(style => !styleCount[style]);
-  
+  const dominantStyleCount = Math.max(
+    ...(Object.values(styleCount) as number[]),
+  );
+  const consistency = Math.round(
+    (dominantStyleCount / allStyleTags.length) * 100,
+  );
+
+  const commonStyles = ["casual", "formal", "business", "party"];
+  const gaps = commonStyles.filter((style) => !styleCount[style]);
+
   return {
     consistency,
     topStyles,
-    distribution: totalStyles > 5 ? 'diverse' : totalStyles > 2 ? 'balanced' : 'focused',
-    gaps: gaps.slice(0, 3)
+    distribution:
+      totalStyles > 5 ? "diverse" : totalStyles > 2 ? "balanced" : "focused",
+    gaps: gaps.slice(0, 3),
   };
 }
 
 // Analyze color palette with sophisticated color theory
 function analyzeColorPalette(items: any[]) {
-  const colors = items.map(item => item.color).filter(Boolean);
-  
+  const colors = items.map((item) => item.color).filter(Boolean);
+
   if (colors.length === 0) {
     return {
-      dominant: ['neutral tones'],
+      dominant: ["neutral tones"],
       supporting: [],
       harmonyScore: 50,
-      missingNeutrals: ['black', 'white', 'navy']
+      missingNeutrals: ["black", "white", "navy"],
     };
   }
-  
-  const colorCount = colors.reduce((acc, color) => {
-    const normalizedColor = color.toLowerCase();
-    acc[normalizedColor] = (acc[normalizedColor] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const sortedColors = Object.entries(colorCount)
-    .sort(([,a], [,b]) => (b as number) - (a as number));
-  
+
+  const colorCount = colors.reduce(
+    (acc, color) => {
+      const normalizedColor = color.toLowerCase();
+      acc[normalizedColor] = (acc[normalizedColor] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
+  const sortedColors = Object.entries(colorCount).sort(
+    ([, a], [, b]) => (b as number) - (a as number),
+  );
+
   const dominant = sortedColors.slice(0, 3).map(([color]) => color);
   const supporting = sortedColors.slice(3, 6).map(([color]) => color);
-  
+
   // Calculate harmony score based on neutral presence and color balance
-  const neutralColors = ['black', 'white', 'gray', 'grey', 'navy', 'beige', 'brown', 'cream'];
-  const neutralCount = dominant.filter(color => 
-    neutralColors.some(neutral => color.includes(neutral))
+  const neutralColors = [
+    "black",
+    "white",
+    "gray",
+    "grey",
+    "navy",
+    "beige",
+    "brown",
+    "cream",
+  ];
+  const neutralCount = dominant.filter((color) =>
+    neutralColors.some((neutral) => color.includes(neutral)),
   ).length;
-  
-  const harmonyScore = Math.min(50 + (neutralCount * 20) + (colors.length > 5 ? 10 : 0), 100);
-  
-  const essentialNeutrals = ['black', 'white', 'navy'];
-  const missingNeutrals = essentialNeutrals.filter(neutral => 
-    !colors.some(color => color.toLowerCase().includes(neutral))
+
+  const harmonyScore = Math.min(
+    50 + neutralCount * 20 + (colors.length > 5 ? 10 : 0),
+    100,
   );
-  
+
+  const essentialNeutrals = ["black", "white", "navy"];
+  const missingNeutrals = essentialNeutrals.filter(
+    (neutral) => !colors.some((color) => color.toLowerCase().includes(neutral)),
+  );
+
   return {
     dominant,
     supporting,
     harmonyScore,
-    missingNeutrals
+    missingNeutrals,
   };
 }
 
@@ -437,170 +444,245 @@ export const createUserStyleProfile = (items: any[], userPreferences?: any) => {
   const styleAnalysis = analyzeStyleConsistency(items);
   const colorAnalysis = analyzeColorPalette(items);
   const categoryDistribution = categorizeItemsForOutfit(items);
-  
+
   // Analyze brand preferences
-  const brandPreferences = items.reduce((acc, item) => {
-    if (item.brand) {
-      acc[item.brand] = (acc[item.brand] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
-  
+  const brandPreferences = items.reduce(
+    (acc, item) => {
+      if (item.brand) {
+        acc[item.brand] = (acc[item.brand] || 0) + 1;
+      }
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
   const topBrands = Object.entries(brandPreferences)
-    .sort(([,a], [,b]) => (b as number) - (a as number))
+    .sort(([, a], [, b]) => (b as number) - (a as number))
     .slice(0, 3)
     .map(([brand]) => brand);
-  
+
   // Calculate style sophistication level
   const sophisticationScore = calculateSophisticationScore(items);
-  
+
   // Determine lifestyle patterns
   const lifestylePatterns = analyzeLifestylePatterns(items);
-  
+
   return {
     stylePreferences: {
       primaryStyles: styleAnalysis.topStyles,
       consistency: styleAnalysis.consistency,
-      sophistication: sophisticationScore
+      sophistication: sophisticationScore,
     },
     colorPreferences: {
       dominantColors: colorAnalysis.dominant,
       harmonyLevel: colorAnalysis.harmonyScore,
-      neutralBalance: calculateNeutralBalance(items)
+      neutralBalance: calculateNeutralBalance(items),
     },
     wardrobeComposition: {
       totalItems: items.length,
       categoryDistribution: Object.fromEntries(
-        Object.entries(categoryDistribution).map(([key, value]) => [key, value.length])
+        Object.entries(categoryDistribution).map(([key, value]) => [
+          key,
+          value.length,
+        ]),
       ),
-      brandLoyalty: topBrands.length > 0 ? topBrands : ['varied']
+      brandLoyalty: topBrands.length > 0 ? topBrands : ["varied"],
     },
     lifestyleIndicators: lifestylePatterns,
-    personalizedRecommendations: generatePersonalizedRecommendations(items, styleAnalysis, colorAnalysis)
+    personalizedRecommendations: generatePersonalizedRecommendations(
+      items,
+      styleAnalysis,
+      colorAnalysis,
+    ),
   };
 };
 
 // Calculate sophistication score based on wardrobe items
 function calculateSophisticationScore(items: any[]): number {
   let score = 50; // Base score
-  
+
   // Check for formal/business items
-  const formalItems = items.filter(item => {
-    const category = typeof item.category === 'string' ? item.category.toLowerCase() : item.category?.name?.toLowerCase() || '';
-    const styleTags = item.clothing_item_style_tags?.map(tag => tag.style_tag?.name.toLowerCase()) || [];
-    
-    return category.includes('suit') || 
-           category.includes('blazer') || 
-           category.includes('dress') ||
-           styleTags.includes('formal') ||
-           styleTags.includes('business') ||
-           styleTags.includes('elegant');
+  const formalItems = items.filter((item) => {
+    const category =
+      typeof item.category === "string"
+        ? item.category.toLowerCase()
+        : item.category?.name?.toLowerCase() || "";
+    const styleTags =
+      item.clothing_item_style_tags?.map((tag) =>
+        tag.style_tag?.name.toLowerCase(),
+      ) || [];
+
+    return (
+      category.includes("suit") ||
+      category.includes("blazer") ||
+      category.includes("dress") ||
+      styleTags.includes("formal") ||
+      styleTags.includes("business") ||
+      styleTags.includes("elegant")
+    );
   });
-  
+
   score += Math.min(formalItems.length * 10, 30);
-  
+
   // Check for luxury brands (simplified)
-  const luxuryBrands = ['gucci', 'prada', 'chanel', 'dior', 'versace', 'armani', 'hugo boss'];
-  const hasLuxuryBrands = items.some(item => 
-    luxuryBrands.some(brand => item.brand?.toLowerCase().includes(brand))
+  const luxuryBrands = [
+    "gucci",
+    "prada",
+    "chanel",
+    "dior",
+    "versace",
+    "armani",
+    "hugo boss",
+  ];
+  const hasLuxuryBrands = items.some((item) =>
+    luxuryBrands.some((brand) => item.brand?.toLowerCase().includes(brand)),
   );
-  
+
   if (hasLuxuryBrands) score += 15;
-  
+
   // Check color sophistication (neutral dominance)
-  const colors = items.map(item => item.color).filter(Boolean);
-  const neutrals = ['black', 'white', 'navy', 'gray', 'beige', 'brown'];
-  const neutralCount = colors.filter(color => 
-    neutrals.some(neutral => color.toLowerCase().includes(neutral))
+  const colors = items.map((item) => item.color).filter(Boolean);
+  const neutrals = ["black", "white", "navy", "gray", "beige", "brown"];
+  const neutralCount = colors.filter((color) =>
+    neutrals.some((neutral) => color.toLowerCase().includes(neutral)),
   ).length;
-  
+
   const neutralRatio = neutralCount / colors.length;
   score += neutralRatio * 20;
-  
+
   return Math.min(Math.max(score, 0), 100);
 }
 
 // Analyze lifestyle patterns from wardrobe
 function analyzeLifestylePatterns(items: any[]): string[] {
   const patterns: string[] = [];
-  
-  const categories = items.reduce((acc, item) => {
-    const category = typeof item.category === 'string' ? item.category.toLowerCase() : item.category?.name?.toLowerCase() || '';
-    acc[category] = (acc[category] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const styleTags = items.flatMap(item => 
-    item.clothing_item_style_tags?.map(tag => tag.style_tag?.name.toLowerCase()) || []
+
+  const categories = items.reduce(
+    (acc, item) => {
+      const category =
+        typeof item.category === "string"
+          ? item.category.toLowerCase()
+          : item.category?.name?.toLowerCase() || "";
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
   );
-  
+
+  const styleTags = items.flatMap(
+    (item) =>
+      item.clothing_item_style_tags?.map((tag) =>
+        tag.style_tag?.name.toLowerCase(),
+      ) || [],
+  );
+
   // Professional lifestyle
-  if (styleTags.includes('business') || styleTags.includes('formal') || categories['blazer'] > 0) {
-    patterns.push('professional');
+  if (
+    styleTags.includes("business") ||
+    styleTags.includes("formal") ||
+    categories["blazer"] > 0
+  ) {
+    patterns.push("professional");
   }
-  
+
   // Active lifestyle
-  if (categories['activewear'] > 0 || styleTags.includes('sport') || styleTags.includes('athletic')) {
-    patterns.push('active');
+  if (
+    categories["activewear"] > 0 ||
+    styleTags.includes("sport") ||
+    styleTags.includes("athletic")
+  ) {
+    patterns.push("active");
   }
-  
+
   // Social lifestyle
-  if (styleTags.includes('party') || styleTags.includes('elegant') || categories['dress'] > 2) {
-    patterns.push('social');
+  if (
+    styleTags.includes("party") ||
+    styleTags.includes("elegant") ||
+    categories["dress"] > 2
+  ) {
+    patterns.push("social");
   }
-  
+
   // Casual lifestyle (default if nothing else detected)
-  if (patterns.length === 0 || styleTags.includes('casual')) {
-    patterns.push('casual');
+  if (patterns.length === 0 || styleTags.includes("casual")) {
+    patterns.push("casual");
   }
-  
+
   return patterns;
 }
 
 // Calculate neutral color balance
 function calculateNeutralBalance(items: any[]): number {
-  const colors = items.map(item => item.color).filter(Boolean);
+  const colors = items.map((item) => item.color).filter(Boolean);
   if (colors.length === 0) return 0;
-  
-  const neutrals = ['black', 'white', 'navy', 'gray', 'grey', 'beige', 'brown', 'cream'];
-  const neutralCount = colors.filter(color => 
-    neutrals.some(neutral => color.toLowerCase().includes(neutral))
+
+  const neutrals = [
+    "black",
+    "white",
+    "navy",
+    "gray",
+    "grey",
+    "beige",
+    "brown",
+    "cream",
+  ];
+  const neutralCount = colors.filter((color) =>
+    neutrals.some((neutral) => color.toLowerCase().includes(neutral)),
   ).length;
-  
+
   return Math.round((neutralCount / colors.length) * 100);
 }
 
 // Generate personalized recommendations based on analysis
-function generatePersonalizedRecommendations(items: any[], styleAnalysis: any, colorAnalysis: any): string[] {
+function generatePersonalizedRecommendations(
+  items: any[],
+  styleAnalysis: any,
+  colorAnalysis: any,
+): string[] {
   const recommendations: string[] = [];
-  
+
   // Style-based recommendations
   if (styleAnalysis.consistency < 60) {
-    recommendations.push('Consider focusing on 2-3 core styles for better wardrobe cohesion');
+    recommendations.push(
+      "Consider focusing on 2-3 core styles for better wardrobe cohesion",
+    );
   }
-  
-  if (styleAnalysis.topStyles.includes('casual') && !styleAnalysis.topStyles.includes('business')) {
-    recommendations.push('Add some business-casual pieces to increase versatility');
+
+  if (
+    styleAnalysis.topStyles.includes("casual") &&
+    !styleAnalysis.topStyles.includes("business")
+  ) {
+    recommendations.push(
+      "Add some business-casual pieces to increase versatility",
+    );
   }
-  
+
   // Color-based recommendations
   if (colorAnalysis.harmonyScore < 70) {
-    recommendations.push(`Incorporate more ${colorAnalysis.missingNeutrals.join(' and ')} pieces for better color harmony`);
+    recommendations.push(
+      `Incorporate more ${colorAnalysis.missingNeutrals.join(" and ")} pieces for better color harmony`,
+    );
   }
-  
+
   if (colorAnalysis.dominant.length < 2) {
-    recommendations.push('Expand your color palette with 1-2 additional core colors');
+    recommendations.push(
+      "Expand your color palette with 1-2 additional core colors",
+    );
   }
-  
+
   // Category-based recommendations
   const categories = categorizeItemsForOutfit(items);
   if (categories.outerwear.length === 0) {
-    recommendations.push('Add versatile outerwear like a blazer or structured jacket');
+    recommendations.push(
+      "Add versatile outerwear like a blazer or structured jacket",
+    );
   }
-  
+
   if (categories.shoes.length < 2) {
-    recommendations.push('Expand shoe collection with both casual and dressy options');
+    recommendations.push(
+      "Expand shoe collection with both casual and dressy options",
+    );
   }
-  
+
   return recommendations.slice(0, 4); // Limit to most important recommendations
-};
+}

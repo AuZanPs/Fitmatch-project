@@ -58,21 +58,21 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        'mejiwoo': {
-          'cream': '#F7F6F0',
-          'black': '#000000',
-          'gray': '#505050',
-          'search-bg': 'rgba(217, 217, 217, 0.35)',
+        mejiwoo: {
+          cream: "#F7F6F0",
+          black: "#000000",
+          gray: "#505050",
+          "search-bg": "rgba(217, 217, 217, 0.35)",
         },
       },
       fontFamily: {
-        'playfair': ['Playfair Display', 'serif'],
-        'montserrat': ['Montserrat', 'sans-serif'],
-        'inter': ['Inter', 'system-ui', 'sans-serif'],
+        playfair: ["Playfair Display", "serif"],
+        montserrat: ["Montserrat", "sans-serif"],
+        inter: ["Inter", "system-ui", "sans-serif"],
       },
       spacing: {
-        '15': '60px',
-        '25': '100px',
+        "15": "60px",
+        "25": "100px",
       },
       borderRadius: {
         lg: "var(--radius)",

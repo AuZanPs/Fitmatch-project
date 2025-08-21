@@ -1,30 +1,32 @@
-import { createClient } from '@supabase/supabase-js';
-import { DEFAULT_CATEGORIES, DEFAULT_STYLE_TAGS } from '../../shared/constants';
+import { createClient } from "@supabase/supabase-js";
+import { DEFAULT_CATEGORIES, DEFAULT_STYLE_TAGS } from "../../shared/constants";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = () => {
-  const isConfigured = !!(supabaseUrl && 
-         supabaseAnonKey && 
-         supabaseUrl !== 'https://your-project.supabase.co' && 
-         supabaseAnonKey !== 'your-anon-key' &&
-         supabaseAnonKey !== 'your-anon-key-here');
-  
+  const isConfigured = !!(
+    supabaseUrl &&
+    supabaseAnonKey &&
+    supabaseUrl !== "https://your-project.supabase.co" &&
+    supabaseAnonKey !== "your-anon-key" &&
+    supabaseAnonKey !== "your-anon-key-here"
+  );
+
   // Debug log for troubleshooting
   if (!isConfigured) {
-    console.log('Supabase configuration check failed:', {
+    console.log("Supabase configuration check failed:", {
       hasUrl: !!supabaseUrl,
       hasKey: !!supabaseAnonKey,
-      urlValue: supabaseUrl || 'undefined',
-      keyLength: supabaseAnonKey?.length || 0
+      urlValue: supabaseUrl || "undefined",
+      keyLength: supabaseAnonKey?.length || 0,
     });
   }
-  
+
   return isConfigured;
 };
 
-export const supabase = isSupabaseConfigured() 
+export const supabase = isSupabaseConfigured()
   ? createClient(supabaseUrl!, supabaseAnonKey!)
   : null;
 
@@ -62,7 +64,9 @@ export interface ClothingItemWithTags extends ClothingItem {
 // Helper function to check if Supabase is available
 const checkSupabaseAvailable = () => {
   if (!supabase) {
-    throw new Error('Supabase is not configured. Please add your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to the environment variables.');
+    throw new Error(
+      "Supabase is not configured. Please add your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to the environment variables.",
+    );
   }
   return supabase;
 };
@@ -81,10 +85,10 @@ export const signIn = async (email: string, password: string) => {
 export const signInWithGoogle = async () => {
   const client = checkSupabaseAvailable();
   return await client.auth.signInWithOAuth({
-    provider: 'google',
+    provider: "google",
     options: {
-      redirectTo: `${window.location.origin}/dashboard`
-    }
+      redirectTo: `${window.location.origin}/dashboard`,
+    },
   });
 };
 
@@ -98,7 +102,9 @@ export const getCurrentSession = async () => {
   return await client.auth.getSession();
 };
 
-export const onAuthStateChange = (callback: (event: string, session: any) => void) => {
+export const onAuthStateChange = (
+  callback: (event: string, session: any) => void,
+) => {
   const client = checkSupabaseAvailable();
   return client.auth.onAuthStateChange(callback);
 };
@@ -109,14 +115,14 @@ export const getCategories = async () => {
 
   try {
     const { data, error } = await client
-      .from('categories')
-      .select('*')
-      .order('name');
-    
+      .from("categories")
+      .select("*")
+      .order("name");
+
     if (error) {
       return DEFAULT_CATEGORIES;
     }
-    
+
     return data.length > 0 ? data : DEFAULT_CATEGORIES;
   } catch (error) {
     return DEFAULT_CATEGORIES;
@@ -128,14 +134,14 @@ export const getStyleTags = async () => {
 
   try {
     const { data, error } = await client
-      .from('style_tags')
-      .select('*')
-      .order('name');
-    
+      .from("style_tags")
+      .select("*")
+      .order("name");
+
     if (error) {
       return DEFAULT_STYLE_TAGS;
     }
-    
+
     return data.length > 0 ? data : DEFAULT_STYLE_TAGS;
   } catch (error) {
     return DEFAULT_STYLE_TAGS;
@@ -144,96 +150,111 @@ export const getStyleTags = async () => {
 
 export const getUserClothingItems = async (userId: string) => {
   const client = checkSupabaseAvailable();
-  
+
   try {
     // Use the optimized function for better performance
-    const { data, error } = await client
-      .rpc('get_user_clothing_items_with_tags', { user_id: userId });
-    
+    const { data, error } = await client.rpc(
+      "get_user_clothing_items_with_tags",
+      { user_id: userId },
+    );
+
     if (error) {
       // Fallback to original query if function doesn't exist yet
       const fallbackResult = await client
-        .from('clothing_items')
-        .select(`
+        .from("clothing_items")
+        .select(
+          `
           *,
           category:categories(*),
           clothing_item_style_tags(
             style_tag:style_tags(*)
           )
-        `)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-      
+        `,
+        )
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
       if (fallbackResult.error) throw fallbackResult.error;
       return fallbackResult.data;
     }
-    
+
     return data;
   } catch (error) {
     // Final fallback - simple query
     const { data, error: simpleError } = await client
-      .from('clothing_items')
-      .select(`
+      .from("clothing_items")
+      .select(
+        `
         *,
         category:categories(*),
         clothing_item_style_tags(
           style_tag:style_tags(*)
         )
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    
+      `,
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
     if (simpleError) throw simpleError;
     return data;
   }
 };
 
-export const getClothingItemsByStyle = async (userId: string, styleTagId: number) => {
+export const getClothingItemsByStyle = async (
+  userId: string,
+  styleTagId: number,
+) => {
   const client = checkSupabaseAvailable();
-  
+
   try {
     // Use the optimized function for better performance
-    const { data, error } = await client
-      .rpc('get_user_clothing_items_by_style', { 
-        user_id: userId, 
-        style_tag_id: styleTagId 
-      });
-    
+    const { data, error } = await client.rpc(
+      "get_user_clothing_items_by_style",
+      {
+        user_id: userId,
+        style_tag_id: styleTagId,
+      },
+    );
+
     if (error) {
       // Fallback to original query if function doesn't exist yet
       const fallbackResult = await client
-        .from('clothing_items')
-        .select(`
+        .from("clothing_items")
+        .select(
+          `
           *,
           category:categories(*),
           clothing_item_style_tags!inner(
             style_tag:style_tags(*)
           )
-        `)
-        .eq('user_id', userId)
-        .eq('clothing_item_style_tags.style_tag_id', styleTagId)
-        .order('created_at', { ascending: false });
-      
+        `,
+        )
+        .eq("user_id", userId)
+        .eq("clothing_item_style_tags.style_tag_id", styleTagId)
+        .order("created_at", { ascending: false });
+
       if (fallbackResult.error) throw fallbackResult.error;
       return fallbackResult.data;
     }
-    
+
     return data;
   } catch (error) {
     // Final fallback - simple query with better indexing
     const { data, error: simpleError } = await client
-      .from('clothing_items')
-      .select(`
+      .from("clothing_items")
+      .select(
+        `
         *,
         category:categories(*),
         clothing_item_style_tags!inner(
           style_tag:style_tags(*)
         )
-      `)
-      .eq('user_id', userId)
-      .eq('clothing_item_style_tags.style_tag_id', styleTagId)
-      .order('created_at', { ascending: false });
-    
+      `,
+      )
+      .eq("user_id", userId)
+      .eq("clothing_item_style_tags.style_tag_id", styleTagId)
+      .order("created_at", { ascending: false });
+
     if (simpleError) throw simpleError;
     return data;
   }
@@ -241,20 +262,20 @@ export const getClothingItemsByStyle = async (userId: string, styleTagId: number
 
 export const uploadClothingImage = async (file: File, userId: string) => {
   const client = checkSupabaseAvailable();
-  const fileExt = file.name.split('.').pop();
+  const fileExt = file.name.split(".").pop();
   const fileName = `${userId}/${Date.now()}.${fileExt}`;
-  
+
   const { data, error } = await client.storage
-    .from('clothing-images')
+    .from("clothing-images")
     .upload(fileName, file);
-  
+
   if (error) throw error;
-  
+
   // Get public URL
   const { data: urlData } = client.storage
-    .from('clothing-images')
+    .from("clothing-images")
     .getPublicUrl(fileName);
-  
+
   return urlData.publicUrl;
 };
 
@@ -264,48 +285,48 @@ export const createClothingItem = async (
   categoryId: number,
   styleTagIds: number[],
   brand?: string,
-  color?: string
+  color?: string,
 ) => {
   const client = checkSupabaseAvailable();
-  
+
   // Insert clothing item
   const { data: clothingItem, error: itemError } = await client
-    .from('clothing_items')
+    .from("clothing_items")
     .insert({
       user_id: userId,
       image_url: imageUrl,
       category_id: categoryId,
       brand,
-      color
+      color,
     })
     .select()
     .single();
-  
+
   if (itemError) throw itemError;
-  
+
   // Insert style tag associations
   if (styleTagIds.length > 0) {
-    const styleTagInserts = styleTagIds.map(styleTagId => ({
+    const styleTagInserts = styleTagIds.map((styleTagId) => ({
       clothing_item_id: clothingItem.id,
-      style_tag_id: styleTagId
+      style_tag_id: styleTagId,
     }));
-    
+
     const { error: tagsError } = await client
-      .from('clothing_item_style_tags')
+      .from("clothing_item_style_tags")
       .insert(styleTagInserts);
-    
+
     if (tagsError) throw tagsError;
   }
-  
+
   return clothingItem;
 };
 
 export const deleteClothingItem = async (itemId: string) => {
   const client = checkSupabaseAvailable();
   const { error } = await client
-    .from('clothing_items')
+    .from("clothing_items")
     .delete()
-    .eq('id', itemId);
-  
+    .eq("id", itemId);
+
   if (error) throw error;
 };

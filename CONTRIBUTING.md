@@ -5,6 +5,7 @@ Thank you for your interest in contributing to FitMatch! This document provides 
 ## How to Contribute
 
 ### 1. Fork and Clone
+
 ```bash
 # Fork the repository on GitHub, then clone your fork
 git clone https://github.com/yourusername/fitMatch.git
@@ -12,6 +13,7 @@ cd fitMatch
 ```
 
 ### 2. Set up Development Environment
+
 ```bash
 # Install dependencies
 npm install
@@ -27,6 +29,7 @@ npm run dev
 ```
 
 ### 3. Create a Branch
+
 ```bash
 # Create a new branch for your feature
 git checkout -b feature/your-feature-name
@@ -36,12 +39,14 @@ git checkout -b fix/bug-description
 ```
 
 ### 4. Make Changes
+
 - Follow the existing code style and patterns
 - Add proper TypeScript types
 - Include error handling
 - Write clear, concise commit messages
 
 ### 5. Test Your Changes
+
 ```bash
 # Run TypeScript check
 npm run typecheck
@@ -54,6 +59,7 @@ npm run dev
 ```
 
 ### 6. Submit Pull Request
+
 1. Push your branch to your fork
 2. Create a Pull Request on GitHub
 3. Provide a clear description of your changes
@@ -62,24 +68,28 @@ npm run dev
 ## Development Guidelines
 
 ### Code Style
+
 - Use TypeScript for all new code
 - Follow existing naming conventions
 - Use descriptive variable and function names
 - Add JSDoc comments for complex functions
 
 ### React Best Practices
+
 - Use functional components with hooks
 - Implement proper memoization with `useMemo` and `useCallback`
 - Handle loading and error states appropriately
 - Follow the existing component structure
 
 ### Security Considerations
+
 - Never commit real API keys or secrets
 - Validate all user inputs
 - Use proper error handling that doesn't expose sensitive information
 - Follow the existing security patterns
 
 ### Performance
+
 - Optimize images and assets
 - Use lazy loading where appropriate
 - Implement proper memoization
@@ -88,6 +98,7 @@ npm run dev
 ## Bug Reports
 
 When reporting bugs, please include:
+
 - Clear description of the issue
 - Steps to reproduce
 - Expected vs actual behavior
@@ -97,6 +108,7 @@ When reporting bugs, please include:
 ## Feature Requests
 
 For feature requests:
+
 - Explain the problem you're trying to solve
 - Describe your proposed solution
 - Consider backwards compatibility
@@ -111,6 +123,7 @@ For feature requests:
 5. **Documentation**: Update README.md if needed
 
 ### PR Checklist
+
 - [ ] Code follows project style guidelines
 - [ ] TypeScript check passes (`npm run typecheck`)
 - [ ] Build succeeds (`npm run build`)
@@ -138,6 +151,7 @@ For feature requests:
 ## Testing
 
 While we don't have extensive automated tests yet, please:
+
 - Test your changes thoroughly in the browser
 - Test on different screen sizes
 - Verify authentication flows work
@@ -155,6 +169,7 @@ While we don't have extensive automated tests yet, please:
 ## Questions?
 
 If you have questions about contributing:
+
 - Check existing issues and discussions
 - Open a new issue with the `question` label
 - Be specific about what you're trying to accomplish

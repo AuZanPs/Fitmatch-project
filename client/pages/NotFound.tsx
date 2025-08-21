@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { Home, ArrowLeft } from 'lucide-react';
+import { Link } from "react-router-dom";
+import { Home, ArrowLeft } from "lucide-react";
 
 export default function NotFound() {
   return (
@@ -13,17 +13,18 @@ export default function NotFound() {
             </h1>
             <div className="w-16 sm:w-20 h-1 bg-black mx-auto"></div>
           </div>
-          
+
           {/* Error Message */}
           <div className="mb-6 sm:mb-8">
             <h2 className="font-playfair text-xl sm:text-2xl lg:text-3xl font-bold text-black mb-3 sm:mb-4">
               Page Not Found
             </h2>
             <p className="font-montserrat text-sm sm:text-base text-mejiwoo-gray leading-relaxed">
-              Sorry, the page you're looking for doesn't exist. It might have been moved, deleted, or you entered the wrong URL.
+              Sorry, the page you're looking for doesn't exist. It might have
+              been moved, deleted, or you entered the wrong URL.
             </p>
           </div>
-          
+
           {/* Action Buttons */}
           <div className="space-y-3 sm:space-y-4">
             <Link
@@ -33,7 +34,7 @@ export default function NotFound() {
               <Home className="w-4 h-4 sm:w-5 sm:h-5" />
               Go to Dashboard
             </Link>
-            
+
             <button
               onClick={() => window.history.back()}
               className="w-full bg-gray-100 text-black py-3 sm:py-4 rounded-lg font-montserrat font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 sm:gap-3 text-sm sm:text-base touch-manipulation min-h-[44px]"
@@ -42,7 +43,7 @@ export default function NotFound() {
               Go Back
             </button>
           </div>
-          
+
           {/* Help Text */}
           <p className="font-montserrat text-xs sm:text-sm text-mejiwoo-gray mt-6 sm:mt-8">
             Need help? Check your URL or navigate using the buttons above.

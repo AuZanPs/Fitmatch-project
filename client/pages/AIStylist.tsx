@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { 
-  Sparkles, 
-  Wand2, 
-  Heart, 
-  RefreshCw, 
-  ArrowLeft, 
-  Calendar, 
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import {
+  Sparkles,
+  Wand2,
+  Heart,
+  RefreshCw,
+  ArrowLeft,
+  Calendar,
   ShoppingBag,
   TrendingUp,
   Lightbulb,
@@ -15,11 +15,16 @@ import {
   LogOut,
   Upload,
   Plus,
-  AlertTriangle
-} from 'lucide-react';
-import { getUserClothingItems, signOut, getCurrentSession, onAuthStateChange } from '../lib/supabase';
-import type { ClothingItemWithTags } from '../lib/supabase';
-import OptimizedImage from '../components/OptimizedImage';
+  AlertTriangle,
+} from "lucide-react";
+import {
+  getUserClothingItems,
+  signOut,
+  getCurrentSession,
+  onAuthStateChange,
+} from "../lib/supabase";
+import type { ClothingItemWithTags } from "../lib/supabase";
+import OptimizedImage from "../components/OptimizedImage";
 
 interface OutfitSuggestion {
   id: string;
@@ -86,20 +91,25 @@ interface WardrobeAnalysis {
 
 export default function AIStylist() {
   const [user, setUser] = useState<any>(null);
-  const [clothingItems, setClothingItems] = useState<ClothingItemWithTags[]>([]);
-  const [outfitSuggestions, setOutfitSuggestions] = useState<OutfitSuggestion[]>([]);
-  const [wardrobeAnalysis, setWardrobeAnalysis] = useState<WardrobeAnalysis | null>(null);
+  const [clothingItems, setClothingItems] = useState<ClothingItemWithTags[]>(
+    [],
+  );
+  const [outfitSuggestions, setOutfitSuggestions] = useState<
+    OutfitSuggestion[]
+  >([]);
+  const [wardrobeAnalysis, setWardrobeAnalysis] =
+    useState<WardrobeAnalysis | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'outfits' | 'analysis'>('outfits');
+  const [activeTab, setActiveTab] = useState<"outfits" | "analysis">("outfits");
 
   const [preferences, setPreferences] = useState<StylePreferences>({
-    occasion: 'casual',
-    weather: 'mild',
-    style: 'comfortable',
-    colors: []
+    occasion: "casual",
+    weather: "mild",
+    style: "comfortable",
+    colors: [],
   });
   const navigate = useNavigate();
 
@@ -109,13 +119,13 @@ export default function AIStylist() {
       try {
         const sessionResult = await getCurrentSession();
         if (!sessionResult?.data?.session?.user) {
-          navigate('/');
+          navigate("/");
           return;
         }
         setUser(sessionResult.data.session.user);
       } catch (error) {
-        console.error('Auth check failed:', error);
-        navigate('/');
+        console.error("Auth check failed:", error);
+        navigate("/");
       } finally {
         setIsLoading(false);
       }
@@ -123,9 +133,11 @@ export default function AIStylist() {
 
     checkAuth();
 
-    const { data: { subscription } } = onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
-        navigate('/');
+    const {
+      data: { subscription },
+    } = onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        navigate("/");
       }
     });
 
@@ -141,22 +153,25 @@ export default function AIStylist() {
   // Memoized expensive calculations
   const wardrobeStats = useMemo(() => {
     if (!clothingItems.length) return { total: 0, categories: {}, brands: {} };
-    
+
     const categories: Record<string, number> = {};
     const brands: Record<string, number> = {};
-    
-    clothingItems.forEach(item => {
-      const category = typeof item.category === 'string' ? item.category : item.category?.name || 'Unknown';
-      const brand = item.brand || 'Unknown';
-      
+
+    clothingItems.forEach((item) => {
+      const category =
+        typeof item.category === "string"
+          ? item.category
+          : item.category?.name || "Unknown";
+      const brand = item.brand || "Unknown";
+
       categories[category] = (categories[category] || 0) + 1;
       brands[brand] = (brands[brand] || 0) + 1;
     });
-    
+
     return {
       total: clothingItems.length,
       categories,
-      brands
+      brands,
     };
   }, [clothingItems]);
 
@@ -166,39 +181,44 @@ export default function AIStylist() {
 
   const loadClothingItems = useCallback(async () => {
     if (!user) return;
-    
+
     try {
       const items = await getUserClothingItems(user.id);
       setClothingItems(items);
     } catch (error) {
-      console.error('Error loading clothing items:', error);
-      toast.error('Failed to load your wardrobe');
+      console.error("Error loading clothing items:", error);
+      toast.error("Failed to load your wardrobe");
     }
   }, [user]);
 
   const generateOutfits = useCallback(async () => {
     if (!canGenerateOutfits) {
-      toast.error('You need at least 3 clothing items to generate outfits. Upload more items first!');
+      toast.error(
+        "You need at least 3 clothing items to generate outfits. Upload more items first!",
+      );
       return;
     }
 
     setIsGenerating(true);
-    const loadingToast = toast.loading('AI stylist is creating your perfect outfit...', { 
-      duration: Infinity // Keep loading until we dismiss it manually
-    });
-    
+    const loadingToast = toast.loading(
+      "AI stylist is creating your perfect outfit...",
+      {
+        duration: Infinity, // Keep loading until we dismiss it manually
+      },
+    );
+
     // Add timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
       setIsGenerating(false);
       toast.dismiss(loadingToast);
-      toast.error('Request timed out. Please try again.');
+      toast.error("Request timed out. Please try again.");
     }, 30000); // 30 second timeout
-    
+
     try {
-      const response = await fetch('/api/generate-outfits', {
-        method: 'POST',
+      const response = await fetch("/api/generate-outfits", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           userId: user.id, // Add userId for caching system
@@ -206,10 +226,10 @@ export default function AIStylist() {
           preferences: preferences,
           userProfile: {
             style_inspiration: preferences.style,
-            lifestyle: preferences.occasion
+            lifestyle: preferences.occasion,
           },
-          maxOutfits: 1
-        })
+          maxOutfits: 1,
+        }),
       });
 
       clearTimeout(timeoutId);
@@ -221,28 +241,28 @@ export default function AIStylist() {
       }
 
       const data = await response.json();
-      
+
       if (data.outfits && data.outfits.length > 0) {
         setOutfitSuggestions(data.outfits);
-        toast.success('Generated your AI outfit suggestion!');
+        toast.success("Generated your AI outfit suggestion!");
       } else {
-        toast.error('No outfit suggestions were generated. Try again with different preferences.');
+        toast.error(
+          "No outfit suggestions were generated. Try again with different preferences.",
+        );
       }
     } catch (error) {
       clearTimeout(timeoutId);
       toast.dismiss(loadingToast);
-      console.error('Error generating outfits:', error);
+      console.error("Error generating outfits:", error);
       toast.error(`Failed to generate outfits: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }
   }, [canGenerateOutfits, clothingItems, preferences]);
 
-
-
   const analyzeWardrobe = useCallback(async () => {
     if (clothingItems.length === 0) {
-      toast.error('Add some clothing items to your wardrobe first!');
+      toast.error("Add some clothing items to your wardrobe first!");
       return;
     }
 
@@ -251,7 +271,7 @@ export default function AIStylist() {
 
     // More controlled progress simulation for better visibility
     const progressInterval = setInterval(() => {
-      setAnalysisProgress(prev => {
+      setAnalysisProgress((prev) => {
         if (prev >= 90) return prev;
         // Smaller, more frequent increments for smoother progress
         return prev + Math.random() * 8 + 2; // 2-10% increments
@@ -259,36 +279,36 @@ export default function AIStylist() {
     }, 150); // Faster updates for smoother animation
 
     try {
-      const response = await fetch('/api/wardrobe-analysis', {
-        method: 'POST',
+      const response = await fetch("/api/wardrobe-analysis", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           userId: user.id, // Add userId for caching system
           wardrobe: clothingItems,
-          preferences: preferences
-        })
+          preferences: preferences,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to analyze wardrobe');
+        throw new Error("Failed to analyze wardrobe");
       }
 
       const data = await response.json();
       clearInterval(progressInterval);
       setAnalysisProgress(100);
-      
+
       setTimeout(() => {
         setWardrobeAnalysis(data.analysis);
-        setActiveTab('analysis');
-        toast.success('Wardrobe analysis completed!');
+        setActiveTab("analysis");
+        toast.success("Wardrobe analysis completed!");
         setIsAnalyzing(false);
         setAnalysisProgress(0);
       }, 800); // Longer delay to show 100% completion
     } catch (error) {
-      console.error('Error analyzing wardrobe:', error);
-      toast.error('Failed to analyze wardrobe. Please try again.');
+      console.error("Error analyzing wardrobe:", error);
+      toast.error("Failed to analyze wardrobe. Please try again.");
       clearInterval(progressInterval);
       setIsAnalyzing(false);
       setAnalysisProgress(0);
@@ -298,10 +318,10 @@ export default function AIStylist() {
   const handleSignOut = useCallback(async () => {
     try {
       await signOut();
-      navigate('/');
+      navigate("/");
     } catch (error) {
-      console.error('Sign out error:', error);
-      toast.error('Failed to sign out');
+      console.error("Sign out error:", error);
+      toast.error("Failed to sign out");
     }
   }, [navigate]);
 
@@ -310,7 +330,9 @@ export default function AIStylist() {
       <div className="min-h-screen bg-mejiwoo-cream flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="font-montserrat text-lg text-mejiwoo-gray">Loading your AI stylist...</p>
+          <p className="font-montserrat text-lg text-mejiwoo-gray">
+            Loading your AI stylist...
+          </p>
         </div>
       </div>
     );
@@ -324,7 +346,7 @@ export default function AIStylist() {
           <div className="flex items-center justify-between h-20 lg:h-16">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate("/dashboard")}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
                 title="Back to dashboard"
               >
@@ -346,24 +368,24 @@ export default function AIStylist() {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <button
-                onClick={() => navigate('/upload')}
+                onClick={() => navigate("/upload")}
                 className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-montserrat font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Add Item</span>
               </button>
-              
+
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate("/dashboard")}
                 className="bg-black text-white px-4 py-2 rounded-lg font-montserrat font-medium hover:bg-gray-800 transition-colors flex items-center gap-2"
               >
                 <Upload className="w-4 h-4" />
                 <span className="hidden sm:inline">My Wardrobe</span>
               </button>
-              
+
               <button
                 onClick={handleSignOut}
                 className="text-mejiwoo-gray hover:text-black transition-colors"
@@ -382,22 +404,22 @@ export default function AIStylist() {
         <div className="bg-white rounded-lg shadow-sm border p-2 mb-6">
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => setActiveTab('outfits')}
+              onClick={() => setActiveTab("outfits")}
               className={`py-3 px-4 rounded-md font-montserrat font-medium transition-colors flex items-center justify-center gap-2 ${
-                activeTab === 'outfits' 
-                  ? 'bg-black text-white shadow-sm' 
-                  : 'text-mejiwoo-gray hover:text-black hover:bg-gray-50'
+                activeTab === "outfits"
+                  ? "bg-black text-white shadow-sm"
+                  : "text-mejiwoo-gray hover:text-black hover:bg-gray-50"
               }`}
             >
               <Wand2 className="w-4 h-4" />
               AI Outfit Generator
             </button>
             <button
-              onClick={() => setActiveTab('analysis')}
+              onClick={() => setActiveTab("analysis")}
               className={`py-3 px-4 rounded-md font-montserrat font-medium transition-colors flex items-center justify-center gap-2 ${
-                activeTab === 'analysis' 
-                  ? 'bg-black text-white shadow-sm' 
-                  : 'text-mejiwoo-gray hover:text-black hover:bg-gray-50'
+                activeTab === "analysis"
+                  ? "bg-black text-white shadow-sm"
+                  : "text-mejiwoo-gray hover:text-black hover:bg-gray-50"
               }`}
             >
               <TrendingUp className="w-4 h-4" />
@@ -417,24 +439,31 @@ export default function AIStylist() {
                 </h2>
               </div>
               <p className="font-montserrat text-lg text-gray-700 mb-8 max-w-md mx-auto">
-                Our AI is examining your {clothingItems.length} items to identify gaps and opportunities...
+                Our AI is examining your {clothingItems.length} items to
+                identify gaps and opportunities...
               </p>
-              
+
               {/* Progress Bar */}
               <div className="w-full max-w-md mx-auto bg-gray-300 rounded-full h-2 mb-6">
-                <div 
+                <div
                   className="bg-black h-2 rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${analysisProgress}%` }}
                 ></div>
               </div>
-              
+
               <div className="flex items-center justify-center gap-3 text-base font-montserrat text-gray-600">
-                <span className="font-semibold text-black">{Math.round(analysisProgress)}% complete</span>
+                <span className="font-semibold text-black">
+                  {Math.round(analysisProgress)}% complete
+                </span>
                 <span>•</span>
                 <span>
                   {analysisProgress < 30 && "Scanning clothing items..."}
-                  {analysisProgress >= 30 && analysisProgress < 60 && "Analyzing color combinations..."}
-                  {analysisProgress >= 60 && analysisProgress < 90 && "Identifying style gaps..."}
+                  {analysisProgress >= 30 &&
+                    analysisProgress < 60 &&
+                    "Analyzing color combinations..."}
+                  {analysisProgress >= 60 &&
+                    analysisProgress < 90 &&
+                    "Identifying style gaps..."}
                   {analysisProgress >= 90 && "Generating recommendations..."}
                 </span>
               </div>
@@ -445,7 +474,7 @@ export default function AIStylist() {
         {/* Tab Content */}
         <div className="space-y-6">
           {/* Outfit Generator Tab */}
-          {activeTab === 'outfits' && !isAnalyzing && (
+          {activeTab === "outfits" && !isAnalyzing && (
             <div className="space-y-6">
               {/* Style Preferences */}
               <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -453,7 +482,7 @@ export default function AIStylist() {
                   <Calendar className="w-5 h-5 text-purple-500" />
                   Style Preferences
                 </h2>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="block font-montserrat text-sm font-medium text-black mb-2">
@@ -461,7 +490,12 @@ export default function AIStylist() {
                     </label>
                     <select
                       value={preferences.occasion}
-                      onChange={(e) => setPreferences({...preferences, occasion: e.target.value})}
+                      onChange={(e) =>
+                        setPreferences({
+                          ...preferences,
+                          occasion: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-montserrat"
                     >
                       <option value="casual">Casual</option>
@@ -479,7 +513,12 @@ export default function AIStylist() {
                     </label>
                     <select
                       value={preferences.weather}
-                      onChange={(e) => setPreferences({...preferences, weather: e.target.value})}
+                      onChange={(e) =>
+                        setPreferences({
+                          ...preferences,
+                          weather: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-montserrat"
                     >
                       <option value="hot">Hot</option>
@@ -495,7 +534,12 @@ export default function AIStylist() {
                     </label>
                     <select
                       value={preferences.style}
-                      onChange={(e) => setPreferences({...preferences, style: e.target.value})}
+                      onChange={(e) =>
+                        setPreferences({
+                          ...preferences,
+                          style: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-montserrat"
                     >
                       <option value="comfortable">Comfortable</option>
@@ -529,9 +573,9 @@ export default function AIStylist() {
                   </button>
                   {clothingItems.length < 3 && (
                     <p className="text-sm text-mejiwoo-gray mt-3 font-montserrat">
-                      You need at least 3 clothing items to generate an outfit. 
+                      You need at least 3 clothing items to generate an outfit.
                       <button
-                        onClick={() => navigate('/upload')}
+                        onClick={() => navigate("/upload")}
                         className="text-black hover:text-gray-700 ml-1 underline font-medium"
                       >
                         Upload more items
@@ -552,23 +596,30 @@ export default function AIStylist() {
                         (personalized for you)
                       </span>
                     </h2>
-                    
+
                     <button
                       onClick={generateOutfits}
                       disabled={isGenerating}
                       className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-montserrat font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                     >
-                      <RefreshCw className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
+                      <RefreshCw
+                        className={`w-4 h-4 ${isGenerating ? "animate-spin" : ""}`}
+                      />
                       Regenerate
                     </button>
                   </div>
 
                   <div className="flex justify-center">
                     {outfitSuggestions.map((outfit) => (
-                      <div key={outfit.id} className="bg-white rounded-lg shadow-lg border-2 border-black max-w-3xl w-full">
+                      <div
+                        key={outfit.id}
+                        className="bg-white rounded-lg shadow-lg border-2 border-black max-w-3xl w-full"
+                      >
                         <div className="p-8 border-b-2 border-gray-200">
                           <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-playfair text-2xl font-bold text-black">{outfit.name}</h3>
+                            <h3 className="font-playfair text-2xl font-bold text-black">
+                              {outfit.name}
+                            </h3>
                             <div className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg">
                               <Star className="w-5 h-5 fill-current" />
                               <span className="text-lg font-montserrat font-semibold">
@@ -576,11 +627,16 @@ export default function AIStylist() {
                               </span>
                             </div>
                           </div>
-                          <p className="font-montserrat text-lg text-gray-700 mb-6 leading-relaxed">{outfit.description}</p>
-                          
+                          <p className="font-montserrat text-lg text-gray-700 mb-6 leading-relaxed">
+                            {outfit.description}
+                          </p>
+
                           <div className="grid grid-cols-3 gap-6 mb-8">
                             {outfit.items.slice(0, 3).map((item) => (
-                              <div key={item.id} className="relative group flex flex-col items-center">
+                              <div
+                                key={item.id}
+                                className="relative group flex flex-col items-center"
+                              >
                                 <div className="relative w-full aspect-square bg-gray-50 rounded-xl overflow-hidden shadow-sm">
                                   <OptimizedImage
                                     src={item.image_url}
@@ -590,7 +646,9 @@ export default function AIStylist() {
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                   />
                                   <div className="absolute bottom-3 left-3 bg-black text-white text-xs px-3 py-1.5 rounded-full font-montserrat font-medium shadow-lg">
-                                    {typeof item.category === 'string' ? item.category : item.category?.name}
+                                    {typeof item.category === "string"
+                                      ? item.category
+                                      : item.category?.name}
                                   </div>
                                 </div>
                               </div>
@@ -604,25 +662,31 @@ export default function AIStylist() {
                               <span className="w-2 h-2 bg-black rounded-full"></span>
                               AI Reasoning
                             </h4>
-                            <p className="font-montserrat text-base text-gray-800 leading-relaxed">{outfit.reasoning}</p>
+                            <p className="font-montserrat text-base text-gray-800 leading-relaxed">
+                              {outfit.reasoning}
+                            </p>
                           </div>
 
-                          {outfit.styling_tips && outfit.styling_tips.length > 0 && (
-                            <div className="bg-gray-50 border-l-4 border-black p-6 rounded-r-lg">
-                              <h4 className="font-playfair text-xl font-bold text-black mb-4 flex items-center gap-2">
-                                <Lightbulb className="w-6 h-6 text-black" />
-                                Styling Tips
-                              </h4>
-                              <ul className="space-y-3">
-                                {outfit.styling_tips.map((tip, index) => (
-                                  <li key={index} className="font-montserrat text-base text-gray-800 flex items-start gap-3">
-                                    <span className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></span>
-                                    {tip}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                          {outfit.styling_tips &&
+                            outfit.styling_tips.length > 0 && (
+                              <div className="bg-gray-50 border-l-4 border-black p-6 rounded-r-lg">
+                                <h4 className="font-playfair text-xl font-bold text-black mb-4 flex items-center gap-2">
+                                  <Lightbulb className="w-6 h-6 text-black" />
+                                  Styling Tips
+                                </h4>
+                                <ul className="space-y-3">
+                                  {outfit.styling_tips.map((tip, index) => (
+                                    <li
+                                      key={index}
+                                      className="font-montserrat text-base text-gray-800 flex items-start gap-3"
+                                    >
+                                      <span className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></span>
+                                      {tip}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
 
                           {outfit.color_analysis && (
                             <div className="bg-gray-50 border-l-4 border-black p-6 rounded-r-lg">
@@ -630,7 +694,9 @@ export default function AIStylist() {
                                 <span className="w-2 h-2 bg-black rounded-full"></span>
                                 Color Analysis
                               </h4>
-                              <p className="font-montserrat text-base text-gray-800 leading-relaxed">{outfit.color_analysis}</p>
+                              <p className="font-montserrat text-base text-gray-800 leading-relaxed">
+                                {outfit.color_analysis}
+                              </p>
                             </div>
                           )}
 
@@ -640,7 +706,9 @@ export default function AIStylist() {
                                 <TrendingUp className="w-6 h-6 text-black" />
                                 Trend Insights
                               </h4>
-                              <p className="font-montserrat text-base text-gray-800 leading-relaxed">{outfit.trend_insights}</p>
+                              <p className="font-montserrat text-base text-gray-800 leading-relaxed">
+                                {outfit.trend_insights}
+                              </p>
                             </div>
                           )}
                         </div>
@@ -652,10 +720,8 @@ export default function AIStylist() {
             </div>
           )}
 
-
-
           {/* Wardrobe Analysis Tab */}
-          {activeTab === 'analysis' && !isAnalyzing && (
+          {activeTab === "analysis" && !isAnalyzing && (
             <div className="space-y-6">
               {wardrobeAnalysis ? (
                 <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
@@ -667,8 +733,12 @@ export default function AIStylist() {
                           <TrendingUp className="w-6 h-6 text-black" />
                         </div>
                         <div>
-                          <h3 className="font-playfair text-xl font-bold text-white">Wardrobe Analysis</h3>
-                          <p className="font-montserrat text-sm text-gray-300">AI-powered insights for your style</p>
+                          <h3 className="font-playfair text-xl font-bold text-white">
+                            Wardrobe Analysis
+                          </h3>
+                          <p className="font-montserrat text-sm text-gray-300">
+                            AI-powered insights for your style
+                          </p>
                         </div>
                       </div>
                       <button
@@ -676,7 +746,9 @@ export default function AIStylist() {
                         disabled={isAnalyzing}
                         className="bg-white bg-opacity-20 text-white px-4 py-2 rounded-lg font-montserrat font-medium hover:bg-opacity-30 transition-colors disabled:opacity-50 flex items-center gap-2"
                       >
-                        <RefreshCw className={`w-4 h-4 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                        <RefreshCw
+                          className={`w-4 h-4 ${isAnalyzing ? "animate-spin" : ""}`}
+                        />
                         Re-analyze
                       </button>
                     </div>
@@ -698,7 +770,10 @@ export default function AIStylist() {
                         </div>
                         <ul className="space-y-3">
                           {wardrobeAnalysis.gaps.map((gap, index) => (
-                            <li key={index} className="font-montserrat text-sm sm:text-base text-gray-800 flex items-start gap-3">
+                            <li
+                              key={index}
+                              className="font-montserrat text-sm sm:text-base text-gray-800 flex items-start gap-3"
+                            >
                               <span className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></span>
                               {gap}
                             </li>
@@ -716,19 +791,27 @@ export default function AIStylist() {
                             <span>Investment Priorities</span>
                           </h4>
                           <span className="bg-gray-200 text-black text-xs sm:text-sm px-2 py-1 rounded-full self-start sm:self-auto">
-                            {wardrobeAnalysis.investment_priorities.length} recommendations
+                            {wardrobeAnalysis.investment_priorities.length}{" "}
+                            recommendations
                           </span>
                         </div>
                         <ul className="space-y-3">
-                          {wardrobeAnalysis.investment_priorities.map((item, index) => (
-                            <li key={index} className="font-montserrat text-sm sm:text-base text-gray-800 flex items-start gap-3">
-                              <span className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></span>
-                              <div>
-                                <strong>{item.item}</strong> - {item.reason}
-                                <div className="text-xs text-gray-600 mt-1">Impact: {item.impact}</div>
-                              </div>
-                            </li>
-                          ))}
+                          {wardrobeAnalysis.investment_priorities.map(
+                            (item, index) => (
+                              <li
+                                key={index}
+                                className="font-montserrat text-sm sm:text-base text-gray-800 flex items-start gap-3"
+                              >
+                                <span className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></span>
+                                <div>
+                                  <strong>{item.item}</strong> - {item.reason}
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    Impact: {item.impact}
+                                  </div>
+                                </div>
+                              </li>
+                            ),
+                          )}
                         </ul>
                       </div>
                     )}
@@ -746,12 +829,17 @@ export default function AIStylist() {
                           </span>
                         </div>
                         <ul className="space-y-3">
-                          {wardrobeAnalysis.organization_tips.map((tip, index) => (
-                            <li key={index} className="font-montserrat text-sm sm:text-base text-gray-800 flex items-start gap-3">
-                              <span className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></span>
-                              {tip}
-                            </li>
-                          ))}
+                          {wardrobeAnalysis.organization_tips.map(
+                            (tip, index) => (
+                              <li
+                                key={index}
+                                className="font-montserrat text-sm sm:text-base text-gray-800 flex items-start gap-3"
+                              >
+                                <span className="w-2 h-2 bg-black rounded-full mt-2 flex-shrink-0"></span>
+                                {tip}
+                              </li>
+                            ),
+                          )}
                         </ul>
                       </div>
                     )}
@@ -765,7 +853,9 @@ export default function AIStylist() {
                       Get AI-Powered Wardrobe Insights
                     </h3>
                     <p className="font-montserrat text-mejiwoo-gray mb-6 max-w-md mx-auto">
-                      Discover gaps in your wardrobe, get personalized shopping recommendations, and find priority items to enhance your style.
+                      Discover gaps in your wardrobe, get personalized shopping
+                      recommendations, and find priority items to enhance your
+                      style.
                     </p>
                     {clothingItems.length === 0 ? (
                       <div className="space-y-4">
@@ -773,7 +863,7 @@ export default function AIStylist() {
                           Add some clothing items to your wardrobe first.
                         </p>
                         <button
-                          onClick={() => navigate('/upload')}
+                          onClick={() => navigate("/upload")}
                           className="bg-black text-white px-6 py-3 rounded-lg font-montserrat font-medium hover:bg-gray-800 transition-colors inline-flex items-center gap-2"
                         >
                           <Upload className="w-5 h-5" />

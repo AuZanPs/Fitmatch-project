@@ -39,11 +39,5 @@
     "shared/**/*.ts",
     "vite.config.ts"
   ],
-  "exclude": [
-    "node_modules", 
-    "dist", 
-    "server",
-    "**/*.js",
-    "**/*.mjs"
-  ]
+  "exclude": ["node_modules", "dist", "server", "**/*.js", "**/*.mjs"]
 }

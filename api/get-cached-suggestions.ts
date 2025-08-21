@@ -1,7 +1,22 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
-import { generateWithGemini, buildFashionPrompt, buildOutfitGenerationPrompt, buildWardrobeAnalysisPrompt } from '../shared/gemini';
-import crypto from 'crypto';
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { createClient } from "@supabase/supabase-js";
+import {
+  generateWithGemini,
+  buildFashionPrompt,
+  buildOutfitGenerationPrompt,
+  buildWardrobeAnalysisPrompt,
+} from "../shared/gemini";
+import {
+  generateContextAwareCacheKey,
+  getContextAwareCache,
+  storeContextAwareCache,
+} from "../shared/context-aware-cache";
+import {
+  validateAIResponse,
+  STRUCTURED_PROMPT_TEMPLATES,
+} from "../shared/response-schemas";
+import { batchAIRequest } from "../shared/request-batching";
+import crypto from "crypto";
 
 // Types
 interface CacheRequest {
@@ -14,8 +29,18 @@ interface CacheRequest {
     colors?: string[];
     [key: string]: any;
   };
-  promptType: 'outfit-generation' | 'wardrobe-analysis' | 'styling-advice';
+  promptType:
+    | "outfit-generation"
+    | "wardrobe-analysis"
+    | "styling-advice"
+    | "item-analysis";
   forceRefresh?: boolean;
+  priority?: "high" | "medium" | "low";
+  userContext?: {
+    preferences?: any;
+    seasonalContext?: any;
+    wardrobeEvolution?: any;
+  };
 }
 
 interface CacheResponse {
@@ -31,197 +56,261 @@ interface CacheResponse {
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ 
-      success: false, 
-      error: 'Method not allowed. Use POST.' 
+  if (req.method !== "POST") {
+    return res.status(405).json({
+      success: false,
+      error: "Method not allowed. Use POST.",
     });
   }
 
   const startTime = Date.now();
-  
+
   try {
     const requestData: CacheRequest = req.body;
-    const { userId, items = [], context = {}, promptType, forceRefresh = false } = requestData;
+    const {
+      userId,
+      items = [],
+      context = {},
+      promptType,
+      forceRefresh = false,
+    } = requestData;
 
     if (!userId) {
       return res.status(400).json({
         success: false,
-        error: 'userId is required'
+        error: "userId is required",
       });
     }
 
     // Initialize Supabase client
-    const supabaseUrl = process.env.SUPABASE_URL || '';
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-    
+    const supabaseUrl = process.env.SUPABASE_URL || "";
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
     if (!supabaseUrl || !supabaseServiceKey) {
       return res.status(500).json({
         success: false,
-        error: 'Supabase configuration missing'
+        error: "Supabase configuration missing",
       });
     }
-    
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Generate request hash from the combination of user's items, context, and prompt type
-    const requestHash = generateRequestHash(userId, items, context, promptType);
-    
+    // Generate optimized context-aware cache key
+    // Use performance strategy for high-traffic scenarios, balanced for general use
+    const requestPriority = requestData.priority || "medium";
+    const cacheStrategy =
+      requestPriority === "high" ? "performance" : "balanced";
+
+    // Create proper UserContext object
+    const userContext = requestData.userContext
+      ? {
+          userId,
+          preferences: requestData.userContext.preferences || {},
+          seasonalContext: requestData.userContext.seasonalContext || {
+            season: "spring" as const,
+            climate: "temperate",
+          },
+          wardrobeEvolution: requestData.userContext.wardrobeEvolution || {},
+        }
+      : undefined;
+
+    const cacheKeyResult = generateContextAwareCacheKey(
+      userId,
+      items,
+      context,
+      promptType,
+      userContext,
+      cacheStrategy,
+    );
+    const requestHash = cacheKeyResult.key;
+
+    console.log(`🔍 Cache key optimization metrics:`, {
+      strategy: cacheStrategy,
+      complexity: cacheKeyResult.metrics.complexity,
+      specificity: cacheKeyResult.metrics.specificity,
+      hitProbability: cacheKeyResult.metrics.hitProbability,
+      stability: cacheKeyResult.metrics.stability,
+    });
+
     // Check if we should bypass cache
     if (!forceRefresh) {
-      // Check cache for existing response
-      const { data: cachedData, error: cacheError } = await supabase
-        .from('gemini_cache')
-        .select('gemini_response, access_count')
-        .eq('request_hash', requestHash)
-        .eq('user_id', userId)
-        .single();
-        
-      if (cacheError && !cacheError.message.includes('No rows found')) {
-        console.error('Cache lookup error:', cacheError);
-      }
-      
-      // If we have a cache hit, update access stats and return the cached response
-      if (cachedData) {
-        console.log(`🔄 Cache hit for ${promptType} (request_hash: ${requestHash.substring(0, 8)}...)`);
-        
-        // Update access count and last_accessed_at asynchronously (don't wait for it)
-        try {
-          const updatePromise = supabase
-            .from('gemini_cache')
-            .update({
-              last_accessed_at: new Date().toISOString(),
-              access_count: cachedData.access_count + 1
-            })
-            .eq('request_hash', requestHash);
-            
-          updatePromise.then(() => {
-            console.log(`✅ Updated cache access stats for ${requestHash.substring(0, 8)}...`);
-          });
-        } catch (err) {
-          console.error('Failed to update cache access stats:', err);
-        }
-          
+      // Use enhanced context-aware cache lookup with optimization metrics
+      const cacheResult = await getContextAwareCache(
+        supabase,
+        cacheKeyResult, // Pass full result object for enhanced metrics
+        userId,
+        userContext,
+      );
+
+      if (cacheResult.cached) {
         const responseTime = Date.now() - startTime;
-        console.log(`⚡ Cache response served in ${responseTime}ms`);
-        
+        console.log(
+          `⚡ Context-aware cache response served in ${responseTime}ms`,
+        );
+
         return res.status(200).json({
           success: true,
           cached: true,
-          data: cachedData.gemini_response
+          data: cacheResult.data,
         });
       }
     } else {
       console.log(`🔄 Cache bypass requested for ${promptType}`);
     }
-    
-    // If we get here, we need to generate a new response from Gemini
-    console.log(`🤖 Cache miss for ${promptType}, calling Gemini API...`);
-    
-    // Generate the appropriate prompt based on the prompt type
+
+    // If we get here, we need to generate a new response
+    console.log(
+      `🤖 Cache miss for ${promptType}, using smart request batching...`,
+    );
+
+    // Use smart request batching for optimal performance
+    const batchPriority = requestData.priority || "medium";
+
+    try {
+      // Add request to batch queue
+      const batchResult = await batchAIRequest(
+        userId,
+        promptType,
+        items,
+        context,
+        batchPriority,
+      );
+
+      // If batching returns a result, use it
+      if (batchResult && !batchResult.error) {
+        const responseTime = Date.now() - startTime;
+        console.log(`⚡ Batch response served in ${responseTime}ms`);
+
+        // Store in context-aware cache with optimization metrics
+        await storeContextAwareCache(
+          supabase,
+          cacheKeyResult, // Pass full result object for enhanced metadata
+          userId,
+          promptType,
+          items,
+          context,
+          batchResult,
+          userContext,
+        );
+
+        return res.status(200).json({
+          success: true,
+          cached: false,
+          data: batchResult,
+        });
+      }
+    } catch (batchError) {
+      console.warn(
+        "Batch processing failed, falling back to direct processing:",
+        batchError,
+      );
+    }
+
+    // Fallback to direct processing if batching fails
+    console.log(`🔄 Processing ${promptType} request directly...`);
+
+    // Generate the appropriate prompt with structured output requirements
     let prompt: string;
     let geminiOptions = { temperature: 0.7, maxOutputTokens: 1500 };
-    
+
     switch (promptType) {
-      case 'outfit-generation':
-        prompt = buildOutfitGenerationPrompt(
-          items, 
-          context.occasion || 'casual', 
-          context.weather || 'mild', 
-          context.style || 'comfortable'
-        );
+      case "outfit-generation":
+        prompt =
+          buildOutfitGenerationPrompt(
+            items,
+            context.occasion || "casual",
+            context.weather || "mild",
+            context.style || "comfortable",
+          ) + STRUCTURED_PROMPT_TEMPLATES.outfit_generation;
         break;
-        
-      case 'wardrobe-analysis':
-        prompt = buildWardrobeAnalysisPrompt(items, context);
-        geminiOptions.maxOutputTokens = 2000; // Wardrobe analysis needs more tokens
+
+      case "wardrobe-analysis":
+        prompt =
+          buildWardrobeAnalysisPrompt(items, context) +
+          STRUCTURED_PROMPT_TEMPLATES.wardrobe_analysis;
+        geminiOptions.maxOutputTokens = 2000;
         break;
-        
-      case 'styling-advice':
-        prompt = buildFashionPrompt(
-          context.question || 'Provide styling advice', 
-          { wardrobe: items, ...context }
-        );
+
+      case "styling-advice":
+        prompt =
+          buildFashionPrompt(context.question || "Provide styling advice", {
+            wardrobe: items,
+            ...context,
+          }) + STRUCTURED_PROMPT_TEMPLATES.styling_advice;
         break;
-        
+
+      case "item-analysis":
+        prompt =
+          buildFashionPrompt("Analyze this clothing item in detail", {
+            wardrobe: items,
+            ...context,
+          }) + STRUCTURED_PROMPT_TEMPLATES.item_analysis;
+        break;
+
       default:
         return res.status(400).json({
           success: false,
-          error: 'Invalid promptType specified'
+          error: "Invalid promptType specified",
         });
     }
-    
+
     // Call Gemini API
     try {
-      const geminiResponse = await generateWithGemini(prompt, {
-        ...geminiOptions,
-        useCache: false // Disable in-memory cache since we're implementing our own
-      });
-      
-      // Process the response based on prompt type
+      const geminiResponse = await generateWithGemini(prompt, geminiOptions);
+
+      // Validate and process the response using structured schemas
+      const validation = validateAIResponse(geminiResponse, promptType);
+
       let processedResponse;
-      
-      if (promptType === 'outfit-generation') {
-        // Extract JSON from response
-        const jsonMatch = geminiResponse.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          try {
-            processedResponse = JSON.parse(jsonMatch[0]);
-          } catch (parseError) {
-            console.error('Failed to parse JSON from Gemini response:', parseError);
-            processedResponse = { rawResponse: geminiResponse };
-          }
-        } else {
-          processedResponse = { rawResponse: geminiResponse };
-        }
+      if (validation.success) {
+        processedResponse = validation.data;
+        console.log(`✅ Response validation successful for ${promptType}`);
       } else {
-        // For other prompt types, just use the text response
-        processedResponse = { rawResponse: geminiResponse };
+        processedResponse = validation.fallback;
+        console.warn(
+          `⚠️ Response validation failed, using fallback: ${validation.error}`,
+        );
       }
-      
-      // Store in cache
-      const { error: insertError } = await supabase
-        .from('gemini_cache')
-        .insert({
-          user_id: userId,
-          request_hash: requestHash,
-          request_data: {
-            promptType,
-            itemCount: items.length,
-            context
-          },
-          gemini_response: processedResponse
-        });
-        
-      if (insertError) {
-        console.error('Failed to cache Gemini response:', insertError);
-      } else {
-        console.log(`✅ Cached response for ${promptType} (request_hash: ${requestHash.substring(0, 8)}...)`);
+
+      // Store in enhanced context-aware cache with optimization metrics
+      const cacheStored = await storeContextAwareCache(
+        supabase,
+        cacheKeyResult, // Pass full result object for enhanced metadata
+        userId,
+        promptType,
+        items,
+        context,
+        processedResponse,
+        userContext,
+      );
+
+      if (!cacheStored) {
+        console.warn("Failed to store response in context-aware cache");
       }
-      
+
       const responseTime = Date.now() - startTime;
-      console.log(`⚡ Gemini response generated and cached in ${responseTime}ms`);
-      
+      console.log(
+        `⚡ Gemini response generated and cached in ${responseTime}ms`,
+      );
+
       return res.status(200).json({
         success: true,
         cached: false,
-        data: processedResponse
+        data: processedResponse,
       });
-      
     } catch (geminiError) {
-      console.error('Gemini API error:', geminiError);
+      console.error("Gemini API error:", geminiError);
       return res.status(500).json({
         success: false,
         cached: false,
-        error: `Failed to generate content with Gemini: ${geminiError.message}`
+        error: `Failed to generate content with Gemini: ${geminiError.message}`,
       });
     }
-    
   } catch (error) {
-    console.error('Cache service error:', error);
+    console.error("Cache service error:", error);
     return res.status(500).json({
       success: false,
-      error: `Cache service error: ${error.message}`
+      error: `Cache service error: ${error.message}`,
     });
   }
 }
@@ -230,27 +319,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
  * Generates a deterministic hash from the request parameters
  */
 function generateRequestHash(
-  userId: string, 
-  items: any[], 
-  context: any, 
-  promptType: string
+  userId: string,
+  items: any[],
+  context: any,
+  promptType: string,
 ): string {
   // Create a sorted array of item IDs to ensure consistency
-  const itemIds = items.map(item => item.id).sort();
-  
+  const itemIds = items.map((item) => item.id).sort();
+
   // Create a sorted string representation of the context
   const contextStr = JSON.stringify(
     Object.entries(context)
       .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-      .reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {})
+      .reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {}),
   );
-  
+
   // Combine all elements to create a unique but deterministic string
-  const hashInput = `${userId}:${promptType}:${itemIds.join(',')}:${contextStr}`;
-  
+  const hashInput = `${userId}:${promptType}:${itemIds.join(",")}:${contextStr}`;
+
   // Generate SHA-256 hash
-  return crypto
-    .createHash('sha256')
-    .update(hashInput)
-    .digest('hex');
+  return crypto.createHash("sha256").update(hashInput).digest("hex");
 }

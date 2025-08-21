@@ -21,37 +21,31 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           // Core React
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+
           // UI Library
-          'ui-vendor': [
-            '@radix-ui/react-tooltip',
-            '@radix-ui/react-toast', 
-            '@radix-ui/react-separator',
-            '@radix-ui/react-label',
-            '@radix-ui/react-slot'
+          "ui-vendor": [
+            "@radix-ui/react-tooltip",
+            "@radix-ui/react-toast",
+            "@radix-ui/react-separator",
+            "@radix-ui/react-label",
+            "@radix-ui/react-slot",
           ],
-          
+
           // Utilities
-          'utils-vendor': [
-            'clsx',
-            'tailwind-merge',
-            'class-variance-authority'
+          "utils-vendor": [
+            "clsx",
+            "tailwind-merge",
+            "class-variance-authority",
           ],
-          
+
           // Data & API
-          'data-vendor': [
-            '@tanstack/react-query',
-            '@supabase/supabase-js'
-          ],
-          
+          "data-vendor": ["@tanstack/react-query", "@supabase/supabase-js"],
+
           // Large/Optional dependencies
-          'heavy-vendor': [
-            'sonner',
-            'next-themes'
-          ]
-        }
-      }
+          "heavy-vendor": ["sonner", "next-themes"],
+        },
+      },
     },
     // Increase chunk size warning limit to 800KB
     chunkSizeWarningLimit: 800,
