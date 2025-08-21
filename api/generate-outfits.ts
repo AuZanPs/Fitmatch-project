@@ -3,11 +3,11 @@ import {
   generateWithGemini,
   buildOutfitGenerationPrompt,
   isGeminiConfigured,
-} from "../shared/gemini";
+} from "../shared/gemini.js";
 import {
   validateAIResponse,
   STRUCTURED_PROMPT_TEMPLATES,
-} from "../shared/response-schemas";
+} from "../shared/response-schemas.js";
 import fetch from "node-fetch";
 
 interface OutfitRequest {
@@ -138,8 +138,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Use the enhanced caching endpoint with structured output
       const baseUrl = process.env.VERCEL_URL 
         ? `https://${process.env.VERCEL_URL}`
-        : process.env.NODE_ENV === 'development'
-        ? "http://localhost:8080"
         : "http://localhost:3000";
       
       const cacheUrl = `${baseUrl}/api/get-cached-suggestions`;

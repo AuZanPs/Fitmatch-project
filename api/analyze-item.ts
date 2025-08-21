@@ -2,8 +2,8 @@ import { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   validateAIResponse,
   STRUCTURED_PROMPT_TEMPLATES,
-} from "../shared/response-schemas";
-import { generateWithGemini, buildFashionPrompt } from "../shared/gemini";
+} from "../shared/response-schemas.js";
+import { generateWithGemini, buildFashionPrompt } from "../shared/gemini.js";
 
 // Rate limiting helper (stay within free tier)
 let requestCount = 0;

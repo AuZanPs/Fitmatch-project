@@ -2,20 +2,20 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import {
   generateWithGemini,
-  buildFashionPrompt,
   buildOutfitGenerationPrompt,
   buildWardrobeAnalysisPrompt,
-} from "../shared/gemini";
+  buildFashionPrompt,
+} from "../shared/gemini.js";
 import {
   generateContextAwareCacheKey,
   getContextAwareCache,
   storeContextAwareCache,
-} from "../shared/context-aware-cache";
+} from "../shared/context-aware-cache.js";
 import {
   validateAIResponse,
   STRUCTURED_PROMPT_TEMPLATES,
-} from "../shared/response-schemas";
-import { batchAIRequest } from "../shared/request-batching";
+} from "../shared/response-schemas.js";
+import { batchAIRequest } from "../shared/request-batching.js";
 import crypto from "crypto";
 
 // Types
