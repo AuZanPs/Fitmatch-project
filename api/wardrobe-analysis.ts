@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { isGeminiConfigured } from "./shared/gemini";
+import { isGeminiConfigured } from "../shared/gemini";
 import {
   validateAIResponse,
   STRUCTURED_PROMPT_TEMPLATES,
-} from "./shared/response-schemas";
+} from "../shared/response-schemas";
 import fetch from "node-fetch";
 
 interface WardrobeItem {

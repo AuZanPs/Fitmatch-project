@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { DEFAULT_CATEGORIES, DEFAULT_STYLE_TAGS } from "../../api/shared/constants";
+import { DEFAULT_CATEGORIES, DEFAULT_STYLE_TAGS } from "../../shared/constants";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;

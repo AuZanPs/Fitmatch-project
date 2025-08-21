@@ -3,11 +3,11 @@ import {
   generateWithGemini,
   buildOutfitGenerationPrompt,
   isGeminiConfigured,
-} from "./shared/gemini";
+} from "../shared/gemini";
 import {
   validateAIResponse,
   STRUCTURED_PROMPT_TEMPLATES,
-} from "./shared/response-schemas";
+} from "../shared/response-schemas";
 import fetch from "node-fetch";
 
 interface OutfitRequest {
