@@ -487,9 +487,140 @@ FROM pg_policies
 WHERE schemaname = 'public'
 ORDER BY tablename, policyname;
 
+-- 25. INCLUDE PERFORMANCE FIXES FOR GEMINI_CACHE AND MAINTENANCE_LOGS
+-- These tables are required by the AI features but were missing from the main setup
+
+-- Create gemini_cache table
+CREATE TABLE IF NOT EXISTS gemini_cache (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  request_hash TEXT NOT NULL,
+  request_data JSONB NOT NULL,
+  gemini_response JSONB NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  last_accessed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  access_count INTEGER DEFAULT 1
+);
+
+-- Create maintenance_logs table
+CREATE TABLE IF NOT EXISTS maintenance_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  operation VARCHAR(255) NOT NULL,
+  details TEXT,
+  records_affected INTEGER DEFAULT 0,
+  executed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create performance indexes
+CREATE INDEX IF NOT EXISTS idx_gemini_cache_user_id ON gemini_cache(user_id);
+CREATE INDEX IF NOT EXISTS idx_gemini_cache_request_hash ON gemini_cache(request_hash);
+CREATE INDEX IF NOT EXISTS idx_gemini_cache_created_at ON gemini_cache(created_at);
+CREATE INDEX IF NOT EXISTS idx_maintenance_logs_operation ON maintenance_logs(operation);
+CREATE INDEX IF NOT EXISTS idx_maintenance_logs_executed_at ON maintenance_logs(executed_at);
+
+-- Enable RLS
+ALTER TABLE gemini_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE maintenance_logs ENABLE ROW LEVEL SECURITY;
+
+-- Create optimized RLS policies (single policy approach to avoid multiple permissive policies)
+CREATE POLICY "Optimized cache access policy" ON gemini_cache
+  FOR ALL USING (
+    -- Service role has full access
+    (SELECT auth.jwt()) ->> 'role' = 'service_role' OR
+    -- Users can access their own cache entries
+    (SELECT auth.uid()) = user_id
+  )
+  WITH CHECK (
+    -- Service role can insert/update anything
+    (SELECT auth.jwt()) ->> 'role' = 'service_role' OR
+    -- Users can only insert/update their own entries
+    (SELECT auth.uid()) = user_id
+  );
+
+CREATE POLICY "Optimized maintenance logs policy" ON maintenance_logs
+  FOR ALL USING (
+    -- Service role has full access
+    (SELECT auth.jwt()) ->> 'role' = 'service_role' OR
+    -- Authenticated users can read logs
+    (SELECT auth.role()) = 'authenticated'
+  )
+  WITH CHECK (
+    -- Only service role can insert/update logs
+    (SELECT auth.jwt()) ->> 'role' = 'service_role'
+  );
+
+-- Create cache cleanup functions
+CREATE OR REPLACE FUNCTION cleanup_old_cache(age_interval TEXT DEFAULT '30 days')
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  deleted_count INTEGER;
+BEGIN
+  DELETE FROM gemini_cache 
+  WHERE created_at < NOW() - age_interval::INTERVAL;
+  
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  
+  INSERT INTO maintenance_logs (operation, details, records_affected)
+  VALUES ('cleanup_old_cache', 'Cleaned up cache entries older than ' || age_interval, deleted_count);
+  
+  RETURN deleted_count;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION smart_cache_cleanup(
+  max_cache_size_mb INTEGER DEFAULT 100,
+  min_age_days INTEGER DEFAULT 7,
+  max_age_days INTEGER DEFAULT 30
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  deleted_count INTEGER := 0;
+  current_size_mb NUMERIC;
+  temp_count INTEGER;
+BEGIN
+  SELECT COALESCE(pg_total_relation_size('gemini_cache') / 1024 / 1024, 0)
+  INTO current_size_mb;
+  
+  IF current_size_mb > max_cache_size_mb THEN
+    DELETE FROM gemini_cache 
+    WHERE created_at < NOW() - (max_age_days || ' days')::INTERVAL;
+    
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    
+    SELECT COALESCE(pg_total_relation_size('gemini_cache') / 1024 / 1024, 0)
+    INTO current_size_mb;
+    
+    IF current_size_mb > max_cache_size_mb THEN
+      DELETE FROM gemini_cache 
+      WHERE created_at < NOW() - (min_age_days || ' days')::INTERVAL
+      AND access_count <= 2;
+      
+      GET DIAGNOSTICS temp_count = ROW_COUNT;
+      deleted_count := deleted_count + temp_count;
+    END IF;
+  END IF;
+  
+  INSERT INTO maintenance_logs (operation, details, records_affected)
+  VALUES ('smart_cache_cleanup', 
+          'Smart cleanup: target=' || max_cache_size_mb || 'MB, current=' || current_size_mb || 'MB', 
+          deleted_count);
+  
+  RETURN deleted_count;
+END;
+$$;
+
 -- Success messages with next steps
 SELECT 'Database setup completed successfully! All performance and security issues addressed.' as message;
-SELECT 'Fixed: RLS policies, indexes, function search paths, security definer view, and storage policies.' as database_fixes;
+SELECT 'Fixed: RLS policies, indexes, function search paths, security definer view, storage policies, and performance lints.' as database_fixes;
+SELECT 'Added: gemini_cache and maintenance_logs tables with optimized RLS policies.' as new_tables;
 SELECT 'IMPORTANT: You still need to configure Auth security settings manually in Supabase Dashboard:' as auth_note;
 SELECT '1. Enable Multi-Factor Authentication (MFA)' as step_1;
 SELECT '2. Enable Leaked Password Protection' as step_2;

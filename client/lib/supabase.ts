@@ -155,7 +155,7 @@ export const getUserClothingItems = async (userId: string) => {
     // Use the optimized function for better performance
     const { data, error } = await client.rpc(
       "get_user_clothing_items_with_tags",
-      { user_id: userId },
+      { user_uuid: userId },
     );
 
     if (error) {
@@ -211,7 +211,7 @@ export const getClothingItemsByStyle = async (
     const { data, error } = await client.rpc(
       "get_user_clothing_items_by_style",
       {
-        user_id: userId,
+        user_uuid: userId,
         style_tag_id: styleTagId,
       },
     );

@@ -76,9 +76,4 @@ package-lock.json
 yarn.lock
 
 .vercel
-cleanup-old-cache.sql
-configure-cron-jobs.sql
-fix-cleanup-functions.sql
-fix-existing-policies.sql
-gemini-cache-schema.sql
-setup-caching-system.sql
+
