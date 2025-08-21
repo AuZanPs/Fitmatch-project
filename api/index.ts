@@ -64,7 +64,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         "POST /api/generate-outfits",
         "POST /api/wardrobe-analysis",
         "POST /api/analyze-item",
-        "POST /api/get-cached-suggestions",
         "GET /api/?health=true - Health check",
       ],
     });

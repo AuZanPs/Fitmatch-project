@@ -4,7 +4,6 @@ import {
   validateAIResponse,
   STRUCTURED_PROMPT_TEMPLATES,
 } from "../shared/response-schemas.js";
-import fetch from "node-fetch";
 
 interface WardrobeItem {
   id: string;
@@ -16,7 +15,6 @@ interface WardrobeItem {
 }
 
 interface WardrobeRequest {
-  userId: string; // New: User ID for cache association
   wardrobe: WardrobeItem[];
   preferences?: {
     style?: string;
@@ -25,7 +23,6 @@ interface WardrobeRequest {
   analysis_type?: "full" | "gaps" | "suggestions" | "color_analysis";
   style_goal?: string;
   budget?: string;
-  bypassCache?: boolean; // New: Option to bypass cache
 }
 
 interface WardrobeResponse {
@@ -73,7 +70,6 @@ interface WardrobeResponse {
   error?: string;
   rate_limited?: boolean;
   note?: string;
-  cached?: boolean; // New: Indicate if response was cached
 }
 
 // Rate limiting for free tier
@@ -129,13 +125,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const {
-      userId,
       wardrobe = [],
       preferences = {},
       analysis_type = "full",
       style_goal,
       budget,
-      bypassCache = false,
     }: WardrobeRequest = req.body;
 
     if (!wardrobe || !Array.isArray(wardrobe) || wardrobe.length === 0) {
@@ -145,15 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Validate userId
-    if (!userId || typeof userId !== "string") {
-      return res.status(400).json({
-        success: false,
-        error: "A valid userId is required",
-      });
-    }
-
-    // Check API key
+    // Check API key and generate analysis
     if (!isGeminiConfigured()) {
       console.log("⚠️ Gemini not configured, using smart fallback");
 
@@ -164,107 +150,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    let analysis;
+    // Generate analysis directly
+    const analysis = generateSmartAnalysis(wardrobe, preferences, style_goal);
+    
+    const endTime = Date.now();
+    console.log(`⚡ Wardrobe analysis completed in ${endTime - startTime}ms`);
 
-    try {
-      // Use the enhanced caching service with structured output
-      const baseUrl = process.env.VERCEL_URL 
-        ? `https://${process.env.VERCEL_URL}`
-        : process.env.NODE_ENV === 'development'
-        ? "http://localhost:8080"
-        : "http://localhost:3000";
-      
-      const cacheUrl = `${baseUrl}/api/get-cached-suggestions`;
-      
-      const cacheResponse = await fetch(
-        cacheUrl,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId,
-            items: wardrobe,
-            context: {
-              ...preferences,
-              analysis_type,
-              style_goal,
-              budget,
-            },
-            promptType: "wardrobe-analysis",
-            forceRefresh: bypassCache,
-            priority: "medium",
-            userContext: {
-              preferences: { analysisType: "comprehensive" },
-              seasonalContext: {
-                currentSeason:
-                  new Date().getMonth() < 6 ? "spring-summer" : "fall-winter",
-              },
-              wardrobeEvolution: {
-                itemCount: wardrobe.length,
-                lastAnalysis: new Date().toISOString(),
-              },
-            },
-          }),
-        },
-      );
-
-      if (!cacheResponse.ok) {
-        throw new Error(
-          `Cache service error: ${cacheResponse.status} ${await cacheResponse.text()}`,
-        );
-      }
-
-      const cacheResult = await cacheResponse.json();
-
-      if (!cacheResult.success) {
-        throw new Error(`Cache service error: ${cacheResult.error}`);
-      }
-
-      // Process the cached result with validation
-      if (cacheResult.data && cacheResult.data.rawResponse) {
-        // Validate and parse the AI response
-        const validation = validateAIResponse(
-          cacheResult.data.rawResponse,
-          "wardrobe-analysis",
-        );
-        analysis = validation.success ? validation.data : validation.fallback;
-      } else if (cacheResult.data) {
-        // Validate direct analysis response
-        const validation = validateAIResponse(
-          JSON.stringify(cacheResult.data),
-          "wardrobe-analysis",
-        );
-        analysis = validation.success ? validation.data : validation.fallback;
-      } else {
-        throw new Error("Invalid response format from cache");
-      }
-
-      const endTime = Date.now();
-      console.log(
-        `⚡ Wardrobe analysis ${cacheResult.cached ? "from cache" : "fresh"} completed in ${endTime - startTime}ms`,
-      );
-
-      return res.status(200).json({
-        success: true,
-        analysis,
-        cached: cacheResult.cached,
-        validated: true,
-      });
-    } catch (error) {
-      console.log("🔄 Cache service error, using smart fallback analysis");
-      console.error("Cache error details:", error);
-
-      // Use rule-based analysis when cache service is down
-      analysis = generateSmartAnalysis(wardrobe, preferences, style_goal);
-
-      return res.status(200).json({
-        success: true,
-        analysis,
-        note: "Using fallback analysis due to service unavailability",
-      });
-    }
+    return res.status(200).json({
+      success: true,
+      analysis,
+    });
   } catch (error) {
     console.error("Wardrobe analysis error:", error);
 

@@ -8,10 +8,8 @@ import {
   validateAIResponse,
   STRUCTURED_PROMPT_TEMPLATES,
 } from "../shared/response-schemas.js";
-import fetch from "node-fetch";
 
 interface OutfitRequest {
-  userId: string; // New: User ID for cache association
   items: any[];
   preferences: {
     occasion?: string;
@@ -24,7 +22,6 @@ interface OutfitRequest {
     lifestyle?: string;
   };
   maxOutfits?: number;
-  bypassCache?: boolean; // New: Option to bypass cache
 }
 
 interface OutfitResponse {
@@ -45,7 +42,6 @@ interface OutfitResponse {
   error?: string;
   rate_limited?: boolean;
   note?: string;
-  cached?: boolean; // New: Indicate if response was cached
 }
 
 // Enhanced rate limiting
@@ -84,12 +80,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const requestData: OutfitRequest = req.body;
     const {
-      userId,
       items = [],
       preferences = {},
       userProfile = {},
       maxOutfits = 1,
-      bypassCache = false,
     } = requestData;
 
     // Validate input early
@@ -97,14 +91,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({
         success: false,
         error: "At least 3 clothing items are required to generate outfits",
-      });
-    }
-
-    // Validate userId
-    if (!userId || typeof userId !== "string") {
-      return res.status(400).json({
-        success: false,
-        error: "A valid userId is required",
       });
     }
 
@@ -134,110 +120,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    try {
-      // Use the enhanced caching endpoint with structured output
-      const baseUrl = process.env.VERCEL_URL 
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000";
-      
-      const cacheUrl = `${baseUrl}/api/get-cached-suggestions`;
-      
-      const cacheResponse = await fetch(
-        cacheUrl,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId,
-            items,
-            context: {
-              ...preferences,
-              style_inspiration: userProfile.style_inspiration,
-              lifestyle: userProfile.lifestyle,
-            },
-            promptType: "outfit-generation",
-            forceRefresh: bypassCache,
-            priority: "high",
-            userContext: {
-              preferences: { ...preferences },
-              seasonalContext: { weather: preferences.weather },
-              wardrobeEvolution: { itemCount: items.length },
-            },
-          }),
-        },
-      );
+    // Generate outfits using smart recommendations
+    const outfits = generateSmartOutfits(
+      items,
+      preferences.occasion || "casual",
+      preferences.weather || "mild",
+      preferences.style || "comfortable",
+    );
 
-      if (!cacheResponse.ok) {
-        throw new Error(
-          `Cache service error: ${cacheResponse.status} ${await cacheResponse.text()}`,
-        );
-      }
+    const endTime = Date.now();
+    console.log(`⚡ Outfit generation completed in ${endTime - startTime}ms`);
 
-      const cacheResult = await cacheResponse.json();
-
-      if (!cacheResult.success) {
-        throw new Error(`Cache service error: ${cacheResult.error}`);
-      }
-
-      // Process the cached result
-      let outfits;
-
-      if (cacheResult.data && Array.isArray(cacheResult.data)) {
-        // Direct array response
-        outfits = cacheResult.data;
-      } else if (cacheResult.data && cacheResult.data.rawResponse) {
-        // Text response that needs parsing
-        try {
-          const jsonMatch = cacheResult.data.rawResponse.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            outfits = [parsed]; // Wrap in array if single outfit
-          } else {
-            throw new Error("No valid JSON in response");
-          }
-        } catch (parseError) {
-          console.error("Failed to parse cached response:", parseError);
-          throw new Error("Invalid response format from cache");
-        }
-      } else {
-        // Direct object response
-        outfits = [cacheResult.data]; // Wrap in array if single outfit
-      }
-
-      const endTime = Date.now();
-      console.log(
-        `⚡ Outfit generation ${cacheResult.cached ? "from cache" : "fresh"} completed in ${endTime - startTime}ms`,
-      );
-
-      // Validate the cached response structure
-      const validation = validateAIResponse(
-        JSON.stringify(outfits),
-        "outfit-generation",
-      );
-
-      return res.status(200).json({
-        success: true,
-        outfits: validation.success ? outfits : validation.fallback,
-        cached: cacheResult.cached,
-        validated: validation.success,
-      });
-    } catch (error) {
-      console.error("Error using cache service:", error);
-
-      // Fallback to smart recommendations
-      return res.status(200).json({
-        success: true,
-        outfits: generateSmartOutfits(
-          items,
-          preferences.occasion || "casual",
-          preferences.weather || "mild",
-          preferences.style || "comfortable",
-        ),
-        note: "Using fallback recommendations due to service unavailability",
-      });
-    }
+    return res.status(200).json({
+      success: true,
+      outfits,
+    });
   } catch (error) {
     const endTime = Date.now();
     console.error(

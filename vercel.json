@@ -1,12 +1,6 @@
 {
   "version": 2,
   "functions": {
-    "api/cache-maintenance.ts": {
-      "maxDuration": 30
-    },
-    "api/get-cached-suggestions.ts": {
-      "maxDuration": 10
-    },
     "api/generate-outfits.ts": {
       "maxDuration": 15
     },
@@ -17,12 +11,6 @@
       "maxDuration": 15
     }
   },
-  "crons": [
-    {
-      "path": "/api/cache-maintenance",
-      "schedule": "0 3 * * *"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
