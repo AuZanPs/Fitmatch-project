@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "includeFiles": [
+    "shared/**"
+  ],
   "functions": {
     "api/cache-maintenance.ts": {
       "maxDuration": 30
