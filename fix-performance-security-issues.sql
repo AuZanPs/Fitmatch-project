@@ -73,6 +73,8 @@ RETURNS TABLE(
   auth_optimized BOOLEAN
 )
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
   RETURN QUERY
@@ -106,6 +108,8 @@ RETURNS TABLE(
   policy_evaluations INTEGER
 )
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
   -- This is a placeholder for performance monitoring

@@ -12,7 +12,11 @@ CREATE TABLE IF NOT EXISTS public.maintenance_logs (
 
 -- Basic cleanup function: Deletes entries older than specified interval
 CREATE OR REPLACE FUNCTION cleanup_old_cache(age_interval TEXT)
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   deleted_count INTEGER;
 BEGIN
@@ -35,7 +39,7 @@ BEGIN
   
   RETURN deleted_count;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Advanced smart cleanup function: Keeps frequently accessed records longer
 CREATE OR REPLACE FUNCTION smart_cache_cleanup(
@@ -43,7 +47,11 @@ CREATE OR REPLACE FUNCTION smart_cache_cleanup(
   min_age_days INTEGER DEFAULT 7,
   max_age_days INTEGER DEFAULT 30
 )
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   current_size_mb INTEGER;
   deleted_count INTEGER := 0;
@@ -106,7 +114,7 @@ BEGIN
   
   RETURN deleted_count;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Enable pg_cron extension if not already enabled
 -- Note: Requires superuser privileges. You may need to run this directly in the Supabase dashboard

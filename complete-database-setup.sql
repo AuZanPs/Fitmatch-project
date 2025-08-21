@@ -150,12 +150,16 @@ ON CONFLICT (name) DO NOTHING;
 
 -- 12. Create a function to automatically update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$;
 
 -- 13. Create trigger to automatically update updated_at
 DROP TRIGGER IF EXISTS update_clothing_items_updated_at ON clothing_items;
@@ -428,6 +432,7 @@ LEFT JOIN (
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER 
 LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN

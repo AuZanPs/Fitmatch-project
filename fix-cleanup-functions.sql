@@ -3,7 +3,11 @@
 
 -- Fix the basic cleanup function
 CREATE OR REPLACE FUNCTION cleanup_old_cache(age_interval TEXT)
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   deleted_count INTEGER;
 BEGIN
@@ -13,7 +17,7 @@ BEGIN
   GET DIAGNOSTICS deleted_count = ROW_COUNT;
   RETURN deleted_count;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Fix the smart cleanup function
 CREATE OR REPLACE FUNCTION smart_cache_cleanup(
@@ -21,7 +25,11 @@ CREATE OR REPLACE FUNCTION smart_cache_cleanup(
   min_age_days INTEGER DEFAULT 7,
   max_age_days INTEGER DEFAULT 30
 )
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   current_size_mb INTEGER;
   deleted_count INTEGER := 0;
@@ -67,7 +75,7 @@ BEGIN
   
   RETURN deleted_count;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Test the fixed functions
 SELECT 'Testing cleanup functions...' as status;

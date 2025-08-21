@@ -139,7 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const baseUrl = process.env.VERCEL_URL 
         ? `https://${process.env.VERCEL_URL}`
         : process.env.NODE_ENV === 'development'
-        ? "http://localhost:5173"
+        ? "http://localhost:8080"
         : "http://localhost:3000";
       
       const cacheResponse = await fetch(

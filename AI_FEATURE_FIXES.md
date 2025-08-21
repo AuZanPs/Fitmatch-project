@@ -17,7 +17,7 @@
 **File Affected**: `api/generate-outfits.ts`
 
 **Fix Applied**: Improved URL construction to handle different environments:
-- Development: `http://localhost:5173` (Vite dev server)
+- Development: `http://localhost:8080` (Vite dev server)
 - Production: Uses VERCEL_URL with https protocol
 - Fallback: `http://localhost:3000`
 

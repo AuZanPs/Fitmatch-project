@@ -77,3 +77,12 @@ yarn.lock
 
 .vercel
 
+cleanup-old-cache.sql
+complete-database-setup.sql
+fix-cleanup-functions.sql
+fix-existing-policies.sql
+fix-performance-security-issues.sql
+setup-caching-system.sql
+.env
+
+AI_FEATURE_FIXES.md
