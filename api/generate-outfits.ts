@@ -120,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           preferences.weather || "mild",
           preferences.style || "comfortable",
         ),
-        note: "Using smart recommendations - configure GEMINI_API_KEY for AI-powered suggestions",
+        note: "Using smart recommendations - Please add your GEMINI_API_KEY to .env file for AI-powered suggestions. Get your key from: https://aistudio.google.com/app/apikey",
       });
     }
 

@@ -28,148 +28,137 @@ const checkRateLimit = (): boolean => {
   return true;
 };
 
-// Analyze clothing item using multiple Hugging Face models
-async function analyzeClothingWithHF(
+// Analyze clothing item using Gemini AI
+async function analyzeClothingWithGemini(
   imageUrl: string,
   itemData: any,
 ): Promise<any> {
   try {
-    // Convert image URL to blob for Hugging Face
-    const imageResponse = await fetch(imageUrl);
-    const imageBlob = await imageResponse.blob();
-
-    // Use multiple models for comprehensive analysis
-    const [vitResult, detrResult, ditResult] = await Promise.allSettled([
-      analyzeWithViT(imageBlob),
-      analyzeWithDETR(imageBlob),
-      analyzeWithDiT(imageBlob),
+    // Use multiple Gemini analyses for comprehensive understanding
+    const [visionResult, styleResult, detailResult] = await Promise.allSettled([
+      analyzeWithGeminiVision(imageUrl, itemData),
+      analyzeStyleWithGemini(itemData),
+      analyzeDetailsWithGemini(itemData),
     ]);
 
     // Combine results for comprehensive analysis
     const analysis = combineAnalysisResults(
-      vitResult,
-      detrResult,
-      ditResult,
+      visionResult,
+      styleResult,
+      detailResult,
       itemData,
     );
 
     return analysis;
   } catch (error) {
-    console.error("Hugging Face analysis failed:", error);
+    console.error("Gemini analysis failed:", error);
 
     // Fallback analysis based on basic pattern matching
     return createFallbackAnalysis(itemData);
   }
 }
 
-// Vision Transformer for clothing categorization
-async function analyzeWithViT(imageBlob: Blob): Promise<any> {
+// Gemini Vision for clothing categorization
+async function analyzeWithGeminiVision(imageUrl: string, itemData: any): Promise<any> {
   try {
-    const response = await fetch(
-      "https://api-inference.huggingface.co/models/google/vit-base-patch16-224",
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-        },
-        method: "POST",
-        body: imageBlob,
-      },
-    );
+    const prompt = buildFashionPrompt(
+      `Analyze this clothing item image and provide detailed categorization including:
+      - Main category (shirt, pants, dress, etc.)
+      - Style characteristics
+      - Color analysis
+      - Material suggestions
+      - Occasion suitability`,
+      { wardrobe: [itemData] }
+    ) + STRUCTURED_PROMPT_TEMPLATES.item_analysis;
 
-    if (!response.ok) {
-      console.warn(`ViT analysis failed: ${response.status}`);
-      return { status: "rejected", reason: `ViT error: ${response.status}` };
-    }
+    const analysis = await generateWithGemini(prompt, {
+      temperature: 0.3,
+      maxOutputTokens: 800,
+    });
 
-    const result = await response.json();
     return {
       status: "fulfilled",
-      value: result[0] || { label: "clothing", score: 0.7 },
+      value: { analysis, confidence: 0.85 },
     };
   } catch (error) {
     return { status: "rejected", reason: error };
   }
 }
 
-// DETR for object detection
-async function analyzeWithDETR(imageBlob: Blob): Promise<any> {
+// Gemini for style analysis
+async function analyzeStyleWithGemini(itemData: any): Promise<any> {
   try {
-    const response = await fetch(
-      "https://api-inference.huggingface.co/models/facebook/detr-resnet-50",
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-        },
-        method: "POST",
-        body: imageBlob,
-      },
+    const prompt = buildFashionPrompt(
+      `Analyze the style characteristics of this clothing item:
+      - Fashion style (casual, formal, trendy, classic, etc.)
+      - Versatility score
+      - Styling suggestions
+      - Complementary items`,
+      { wardrobe: [itemData] }
     );
 
-    if (!response.ok) {
-      console.warn(`DETR analysis failed: ${response.status}`);
-      return { status: "rejected", reason: `DETR error: ${response.status}` };
-    }
+    const styleAnalysis = await generateWithGemini(prompt, {
+      temperature: 0.4,
+      maxOutputTokens: 600,
+    });
 
-    const result = await response.json();
-    return { status: "fulfilled", value: result || [] };
+    return { status: "fulfilled", value: { styleAnalysis, confidence: 0.8 } };
   } catch (error) {
     return { status: "rejected", reason: error };
   }
 }
 
-// DiT for detailed classification
-async function analyzeWithDiT(imageBlob: Blob): Promise<any> {
+// Gemini for detailed classification
+async function analyzeDetailsWithGemini(itemData: any): Promise<any> {
   try {
-    const response = await fetch(
-      "https://api-inference.huggingface.co/models/microsoft/DiT-3B",
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-        },
-        method: "POST",
-        body: imageBlob,
-      },
+    const prompt = buildFashionPrompt(
+      `Provide detailed classification and analysis of this clothing item:
+      - Specific subcategory and type
+      - Quality assessment
+      - Care instructions
+      - Seasonal appropriateness
+      - Target demographic`,
+      { wardrobe: [itemData] }
     );
 
-    if (!response.ok) {
-      console.warn(`DiT analysis failed: ${response.status}`);
-      return { status: "rejected", reason: `DiT error: ${response.status}` };
-    }
+    const detailAnalysis = await generateWithGemini(prompt, {
+      temperature: 0.2,
+      maxOutputTokens: 700,
+    });
 
-    const result = await response.json();
     return {
       status: "fulfilled",
-      value: result[0] || { label: "casual wear", score: 0.6 },
+      value: { detailAnalysis, confidence: 0.9 },
     };
   } catch (error) {
     return { status: "rejected", reason: error };
   }
 }
 
-// Combine results from multiple models
+// Combine results from multiple Gemini analyses
 function combineAnalysisResults(
-  vitResult: any,
-  detrResult: any,
-  ditResult: any,
+  visionResult: any,
+  styleResult: any,
+  detailResult: any,
   itemData: any,
 ): any {
   // Extract successful results
-  const vitData = vitResult.status === "fulfilled" ? vitResult.value : null;
-  const detrData = detrResult.status === "fulfilled" ? detrResult.value : null;
-  const ditData = ditResult.status === "fulfilled" ? ditResult.value : null;
+  const visionData = visionResult.status === "fulfilled" ? visionResult.value : null;
+  const styleData = styleResult.status === "fulfilled" ? styleResult.value : null;
+  const detailData = detailResult.status === "fulfilled" ? detailResult.value : null;
 
-  // Determine category from ViT
-  const category = vitData
-    ? mapViTLabelToCategory(vitData.label)
+  // Determine category from vision analysis
+  const category = visionData && visionData.analysis
+    ? extractCategoryFromGemini(visionData.analysis)
     : itemData.category || "Other";
 
-  // Extract style from DiT
-  const styleFeatures = ditData
-    ? extractStyleFromDiT(ditData.label)
+  // Extract style features from style analysis
+  const styleFeatures = styleData && styleData.styleAnalysis
+    ? extractStyleFromGemini(styleData.styleAnalysis)
     : ["casual"];
 
   // Calculate confidence based on successful analyses
-  const successCount = [vitResult, detrResult, ditResult].filter(
+  const successCount = [visionResult, styleResult, detailResult].filter(
     (r) => r.status === "fulfilled",
   ).length;
   const baseConfidence = (successCount / 3) * 0.6 + 0.3; // 0.3 to 0.9 range
@@ -214,30 +203,34 @@ function combineAnalysisResults(
   };
 }
 
-// Map ViT labels to clothing categories
-function mapViTLabelToCategory(label: string): string {
-  const labelLower = label.toLowerCase();
-  if (labelLower.includes("dress")) return "Dresses";
-  if (labelLower.includes("shirt") || labelLower.includes("top")) return "Tops";
-  if (labelLower.includes("pants") || labelLower.includes("jeans"))
+// Extract category from Gemini analysis
+function extractCategoryFromGemini(analysis: string): string {
+  const analysisLower = analysis.toLowerCase();
+  if (analysisLower.includes("dress")) return "Dresses";
+  if (analysisLower.includes("shirt") || analysisLower.includes("top") || analysisLower.includes("blouse")) return "Tops";
+  if (analysisLower.includes("pants") || analysisLower.includes("jeans") || analysisLower.includes("trouser"))
     return "Bottoms";
-  if (labelLower.includes("jacket") || labelLower.includes("coat"))
+  if (analysisLower.includes("jacket") || analysisLower.includes("coat") || analysisLower.includes("blazer"))
     return "Outerwear";
-  if (labelLower.includes("shoe") || labelLower.includes("boot"))
+  if (analysisLower.includes("shoe") || analysisLower.includes("boot") || analysisLower.includes("sneaker"))
     return "Shoes";
+  if (analysisLower.includes("accessory") || analysisLower.includes("bag") || analysisLower.includes("hat"))
+    return "Accessories";
   return "Other";
 }
 
-// Extract style from DiT results
-function extractStyleFromDiT(label: string): string[] {
+// Extract style features from Gemini analysis
+function extractStyleFromGemini(analysis: string): string[] {
   const styleTags: string[] = [];
-  const labelLower = label.toLowerCase();
+  const analysisLower = analysis.toLowerCase();
 
-  if (labelLower.includes("formal") || labelLower.includes("business"))
+  if (analysisLower.includes("formal") || analysisLower.includes("business") || analysisLower.includes("professional"))
     styleTags.push("formal");
-  if (labelLower.includes("casual")) styleTags.push("casual");
-  if (labelLower.includes("elegant")) styleTags.push("elegant");
-  if (labelLower.includes("sport")) styleTags.push("sporty");
+  if (analysisLower.includes("casual") || analysisLower.includes("relaxed")) styleTags.push("casual");
+  if (analysisLower.includes("elegant") || analysisLower.includes("sophisticated")) styleTags.push("elegant");
+  if (analysisLower.includes("sport") || analysisLower.includes("athletic")) styleTags.push("sporty");
+  if (analysisLower.includes("trendy") || analysisLower.includes("modern")) styleTags.push("trendy");
+  if (analysisLower.includes("classic") || analysisLower.includes("timeless")) styleTags.push("classic");
 
   return styleTags.length > 0 ? styleTags : ["versatile"];
 }
@@ -577,10 +570,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       analysis_type = "general",
     } = req.body;
 
-    if (!process.env.HUGGINGFACE_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       return res
         .status(500)
-        .json({ error: "Hugging Face API key not configured" });
+        .json({ error: "Gemini API key not configured" });
     }
 
     // Check rate limit
@@ -608,10 +601,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const finalImageUrl = itemData.image_url || image_url || imageUrl;
 
-    // If there's an image URL, use Hugging Face analysis with structured validation
+    // If there's an image URL, use Gemini analysis with structured validation
     if (finalImageUrl) {
       try {
-        const rawAnalysis = await analyzeClothingWithHF(
+        const rawAnalysis = await analyzeClothingWithGemini(
           finalImageUrl,
           itemData,
         );
@@ -632,7 +625,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           metadata: {
             analysis_type: detailed ? "detailed" : "standard",
             has_image: true,
-            aiProvider: "Hugging Face",
+            aiProvider: "Gemini AI",
             timestamp: new Date().toISOString(),
             validated: validation.success,
           },
@@ -712,7 +705,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error: "Failed to analyze item",
       message:
         "Our AI stylist is temporarily unavailable. Please try again in a few moments.",
-      aiProvider: "Hugging Face",
+      aiProvider: "Gemini AI",
     });
   }
 }

@@ -309,41 +309,52 @@ DROP FUNCTION IF EXISTS get_user_clothing_items_with_tags(UUID);
 DROP FUNCTION IF EXISTS get_user_clothing_items_by_style(UUID, INTEGER);
 
 CREATE OR REPLACE FUNCTION get_user_clothing_items_with_tags(user_uuid UUID)
-RETURNS TABLE (
-  id UUID,
-  user_id UUID,
-  image_url TEXT,
-  category_id INTEGER,
-  category_name TEXT,
-  brand TEXT,
-  color TEXT,
-  created_at TIMESTAMP WITH TIME ZONE,
-  updated_at TIMESTAMP WITH TIME ZONE,
-  style_tag_count BIGINT
-) 
+RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  result JSONB;
 BEGIN
-  RETURN QUERY
-  SELECT 
-    ci.id,
-    ci.user_id,
-    ci.image_url,
-    ci.category_id,
-    c.name as category_name,
-    ci.brand,
-    ci.color,
-    ci.created_at,
-    ci.updated_at,
-    COUNT(cist.style_tag_id) as style_tag_count
+  SELECT jsonb_agg(
+    jsonb_build_object(
+      'id', ci.id,
+      'user_id', ci.user_id,
+      'image_url', ci.image_url,
+      'category_id', ci.category_id,
+      'brand', ci.brand,
+      'color', ci.color,
+      'created_at', ci.created_at,
+      'updated_at', ci.updated_at,
+      'category', jsonb_build_object(
+        'id', c.id,
+        'name', c.name,
+        'created_at', c.created_at
+      ),
+      'clothing_item_style_tags', COALESCE(
+        (SELECT jsonb_agg(
+          jsonb_build_object(
+            'style_tag', jsonb_build_object(
+              'id', st.id,
+              'name', st.name,
+              'created_at', st.created_at
+            )
+          )
+        )
+        FROM clothing_item_style_tags cist
+        JOIN style_tags st ON cist.style_tag_id = st.id
+        WHERE cist.clothing_item_id = ci.id),
+        '[]'::jsonb
+      )
+    )
+    ORDER BY ci.created_at DESC
+  ) INTO result
   FROM clothing_items ci
   LEFT JOIN categories c ON ci.category_id = c.id
-  LEFT JOIN clothing_item_style_tags cist ON ci.id = cist.clothing_item_id
-  WHERE ci.user_id = user_uuid
-  GROUP BY ci.id, ci.user_id, ci.image_url, ci.category_id, c.name, ci.brand, ci.color, ci.created_at, ci.updated_at
-  ORDER BY ci.created_at DESC;
+  WHERE ci.user_id = user_uuid;
+  
+  RETURN COALESCE(result, '[]'::jsonb);
 END;
 $$;
 
@@ -522,32 +533,7 @@ CREATE INDEX IF NOT EXISTS idx_maintenance_logs_executed_at ON maintenance_logs(
 ALTER TABLE gemini_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE maintenance_logs ENABLE ROW LEVEL SECURITY;
 
--- Create optimized RLS policies (single policy approach to avoid multiple permissive policies)
-CREATE POLICY "Optimized cache access policy" ON gemini_cache
-  FOR ALL USING (
-    -- Service role has full access
-    (SELECT auth.jwt()) ->> 'role' = 'service_role' OR
-    -- Users can access their own cache entries
-    (SELECT auth.uid()) = user_id
-  )
-  WITH CHECK (
-    -- Service role can insert/update anything
-    (SELECT auth.jwt()) ->> 'role' = 'service_role' OR
-    -- Users can only insert/update their own entries
-    (SELECT auth.uid()) = user_id
-  );
-
-CREATE POLICY "Optimized maintenance logs policy" ON maintenance_logs
-  FOR ALL USING (
-    -- Service role has full access
-    (SELECT auth.jwt()) ->> 'role' = 'service_role' OR
-    -- Authenticated users can read logs
-    (SELECT auth.role()) = 'authenticated'
-  )
-  WITH CHECK (
-    -- Only service role can insert/update logs
-    (SELECT auth.jwt()) ->> 'role' = 'service_role'
-  );
+-- RLS policies will be created by fix-performance-security-issues.sql to avoid conflicts
 
 -- Create cache cleanup functions
 CREATE OR REPLACE FUNCTION cleanup_old_cache(age_interval TEXT DEFAULT '30 days')

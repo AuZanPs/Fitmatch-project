@@ -27,10 +27,10 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
     version: "1.0.0",
-    huggingface: {
-      configured: !!process.env.HUGGING_FACE_API_KEY,
-      keyLength: process.env.HUGGING_FACE_API_KEY?.length || 0,
-      keyPrefix: process.env.HUGGING_FACE_API_KEY?.substring(0, 5) || "none",
+    gemini: {
+      configured: !!process.env.GEMINI_API_KEY,
+      keyLength: process.env.GEMINI_API_KEY?.length || 0,
+      keyPrefix: process.env.GEMINI_API_KEY?.substring(0, 5) || "none",
     },
   });
 }

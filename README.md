@@ -118,9 +118,9 @@ Note: Never commit real API keys to Git. The repository contains placeholder val
 2. Create a bucket named `clothing-images`
 3. Set it to public access for image serving
 
-### 4. Hugging Face Setup (Optional - for AI features)
+### 4. Gemini AI Setup (Optional - for AI features)
 
-1. Go to Hugging Face and create an account
+1. Go to Google AI Studio and create an account
 2. Create a new API key in your settings
 3. Add it to your `.env.local` file
 
@@ -145,7 +145,7 @@ Visit `http://localhost:8080` to start using FitMatch!
 ### Backend
 
 - Vercel serverless functions with TypeScript
-- Hugging Face API for AI features (in development)
+- Gemini AI API for AI features (in development)
 - Supabase for database, auth, and storage
 - Zod for input validation
 
@@ -251,7 +251,7 @@ In your Vercel dashboard (Settings → Environment Variables), add:
 | ------------------------ | ------------------------- | ----------- |
 | `VITE_SUPABASE_URL`      | Your Supabase URL         | All         |
 | `VITE_SUPABASE_ANON_KEY` | Your Supabase anon key    | All         |
-| `HUGGING_FACE_API_KEY`   | Your Hugging Face API key | All         |
+| `GEMINI_API_KEY`         | Your Gemini AI API key    | All         |
 | `NODE_ENV`               | `production`              | Production  |
 
 #### 4. Automatic GitHub Integration
@@ -378,7 +378,7 @@ npm install
 
 #### AI Features Not Working
 
-- Check if Hugging Face API key is valid
+- Check if Gemini API key is valid
 - Verify API quota and rate limits
 - AI features are currently in development
 

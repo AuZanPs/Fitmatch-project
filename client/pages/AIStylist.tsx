@@ -244,7 +244,14 @@ export default function AIStylist() {
 
       if (data.outfits && data.outfits.length > 0) {
         setOutfitSuggestions(data.outfits);
-        toast.success("Generated your AI outfit suggestion!");
+        if (data.note) {
+          toast.success("Generated outfit suggestions!", {
+            description: data.note,
+            duration: 5000,
+          });
+        } else {
+          toast.success("Generated your AI outfit suggestion!");
+        }
       } else {
         toast.error(
           "No outfit suggestions were generated. Try again with different preferences.",
@@ -254,7 +261,20 @@ export default function AIStylist() {
       clearTimeout(timeoutId);
       toast.dismiss(loadingToast);
       console.error("Error generating outfits:", error);
-      toast.error(`Failed to generate outfits: ${error.message}`);
+      
+      if (error.message.includes("500")) {
+        toast.error("AI service is currently unavailable. Please check your API configuration and try again.", {
+          description: "Make sure your GEMINI_API_KEY is properly set in the .env file.",
+          duration: 6000,
+        });
+      } else if (error.message.includes("FUNCTION_INVOCATION_FAILED")) {
+        toast.error("AI function failed to execute. Please check your API key configuration.", {
+          description: "Visit https://aistudio.google.com/app/apikey to get your Gemini API key.",
+          duration: 6000,
+        });
+      } else {
+        toast.error(`Failed to generate outfits: ${error.message}`);
+      }
     } finally {
       setIsGenerating(false);
     }
