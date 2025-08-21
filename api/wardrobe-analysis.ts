@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateWithGemini, buildWardrobeAnalysisPrompt, isGeminiConfigured } from '../shared/gemini';
+import { isGeminiConfigured } from '../shared/gemini';
+import fetch from 'node-fetch';
 
 interface WardrobeItem {
   id: string;
@@ -11,6 +12,7 @@ interface WardrobeItem {
 }
 
 interface WardrobeRequest {
+  userId: string; // New: User ID for cache association
   wardrobe: WardrobeItem[];
   preferences?: {
     style?: string;
@@ -19,6 +21,7 @@ interface WardrobeRequest {
   analysis_type?: 'full' | 'gaps' | 'suggestions' | 'color_analysis';
   style_goal?: string;
   budget?: string;
+  bypassCache?: boolean; // New: Option to bypass cache
 }
 
 interface WardrobeResponse {
@@ -66,6 +69,7 @@ interface WardrobeResponse {
   error?: string;
   rate_limited?: boolean;
   note?: string;
+  cached?: boolean; // New: Indicate if response was cached
 }
 
 // Rate limiting for free tier
@@ -115,8 +119,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  const startTime = Date.now();
+
   try {
-    const { wardrobe = [], preferences = {}, analysis_type = 'full', style_goal, budget }: WardrobeRequest = req.body;
+    const { userId, wardrobe = [], preferences = {}, analysis_type = 'full', style_goal, budget, bypassCache = false }: WardrobeRequest = req.body;
 
     if (!wardrobe || !Array.isArray(wardrobe) || wardrobe.length === 0) {
       return res.status(400).json({
@@ -125,34 +131,91 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    // Validate userId
+    if (!userId || typeof userId !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'A valid userId is required'
+      });
+    }
+
+    // Check API key
+    if (!isGeminiConfigured()) {
+      console.log('⚠️ Gemini not configured, using smart fallback');
+      
+      return res.status(200).json({
+        success: true,
+        analysis: generateSmartAnalysis(wardrobe, preferences, style_goal),
+        note: 'Using smart analysis - configure GEMINI_API_KEY for AI-powered insights'
+      });
+    }
+
     let analysis;
     
     try {
-      // Generate analysis with Gemini AI
-      console.log(`🤖 Analyzing wardrobe with Gemini: ${wardrobe.length} items`);
+      // Use the caching endpoint instead of direct Gemini API call
+      const cacheResponse = await fetch(new URL('/api/get-cached-suggestions', process.env.VERCEL_URL || 'http://localhost:3000'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId,
+          items: wardrobe,
+          context: {
+            ...preferences,
+            analysis_type,
+            style_goal,
+            budget
+          },
+          promptType: 'wardrobe-analysis',
+          forceRefresh: bypassCache
+        })
+      });
+
+      if (!cacheResponse.ok) {
+        throw new Error(`Cache service error: ${cacheResponse.status} ${await cacheResponse.text()}`);
+      }
+
+      const cacheResult = await cacheResponse.json();
       
-      const prompt = buildWardrobeAnalysisPrompt(wardrobe, preferences);
-      const aiResponse = await generateWithGemini(prompt, {
-        temperature: 0.7,
-        maxOutputTokens: 2000,
-        useCache: true // Enable caching for performance
+      if (!cacheResult.success) {
+        throw new Error(`Cache service error: ${cacheResult.error}`);
+      }
+
+      // Process the cached result
+      if (cacheResult.data && cacheResult.data.rawResponse) {
+        // Parse the AI response
+        analysis = parseGeminiAnalysisResponse(cacheResult.data.rawResponse, wardrobe);
+      } else if (cacheResult.data) {
+        // Direct analysis response
+        analysis = cacheResult.data;
+      } else {
+        throw new Error('Invalid response format from cache');
+      }
+
+      const endTime = Date.now();
+      console.log(`⚡ Wardrobe analysis ${cacheResult.cached ? 'from cache' : 'fresh'} completed in ${endTime - startTime}ms`);
+
+      return res.status(200).json({
+        success: true,
+        analysis,
+        cached: cacheResult.cached
       });
       
-      // Parse the JSON response from Gemini
-      analysis = parseGeminiAnalysisResponse(aiResponse, wardrobe);
-      
     } catch (error) {
-      console.log('🔄 Gemini API error, using smart fallback analysis');
-      console.error('Gemini error details:', error);
+      console.log('🔄 Cache service error, using smart fallback analysis');
+      console.error('Cache error details:', error);
       
-      // Use rule-based analysis when AI is down
+      // Use rule-based analysis when cache service is down
       analysis = generateSmartAnalysis(wardrobe, preferences, style_goal);
-    }
 
-    return res.status(200).json({
-      success: true,
-      analysis
-    });
+      return res.status(200).json({
+        success: true,
+        analysis,
+        note: 'Using fallback analysis due to service unavailability'
+      });
+    }
 
   } catch (error) {
     console.error('Wardrobe analysis error:', error);

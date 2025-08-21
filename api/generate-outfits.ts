@@ -1,7 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateWithGemini, buildOutfitGenerationPrompt, isGeminiConfigured } from '../shared/gemini';
+import fetch from 'node-fetch';
 
 interface OutfitRequest {
+  userId: string; // New: User ID for cache association
   items: any[];
   preferences: {
     occasion?: string;
@@ -14,6 +16,7 @@ interface OutfitRequest {
     lifestyle?: string;
   };
   maxOutfits?: number;
+  bypassCache?: boolean; // New: Option to bypass cache
 }
 
 interface OutfitResponse {
@@ -34,12 +37,12 @@ interface OutfitResponse {
   error?: string;
   rate_limited?: boolean;
   note?: string;
+  cached?: boolean; // New: Indicate if response was cached
 }
 
-// Enhanced rate limiting and request deduplication
+// Enhanced rate limiting
 let requestCount = 0;
 let lastReset = Date.now();
-const pendingRequests = new Map<string, Promise<OutfitResponse>>();
 
 const checkRateLimit = (): boolean => {
   const now = Date.now();
@@ -58,18 +61,6 @@ const checkRateLimit = (): boolean => {
   return true;
 };
 
-// Create request fingerprint for deduplication
-function createRequestFingerprint(request: OutfitRequest): string {
-  const { items, preferences, userProfile } = request;
-  const itemsSignature = items.map(item => `${item.id}-${item.category}`).sort().join(',');
-  const prefsSignature = JSON.stringify({ 
-    occasion: preferences.occasion, 
-    weather: preferences.weather, 
-    style: preferences.style 
-  });
-  return `${itemsSignature}-${prefsSignature}`;
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Only allow POST requests
   if (req.method !== 'POST') {
@@ -83,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const requestData: OutfitRequest = req.body;
-    const { items = [], preferences = {}, userProfile = {}, maxOutfits = 1 } = requestData;
+    const { userId, items = [], preferences = {}, userProfile = {}, maxOutfits = 1, bypassCache = false } = requestData;
 
     // Validate input early
     if (!items || !Array.isArray(items) || items.length < 3) {
@@ -93,33 +84,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    // Validate userId
+    if (!userId || typeof userId !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'A valid userId is required'
+      });
+    }
+
     // Check API key
     if (!isGeminiConfigured()) {
       console.log('⚠️ Gemini not configured, using smart fallback');
-      const fallbackOutfits = generateSmartOutfits(items, 
-        preferences.occasion || 'casual',
-        preferences.weather || 'mild', 
-        preferences.style || 'comfortable'
-      );
       
       return res.status(200).json({
         success: true,
-        outfits: fallbackOutfits,
+        outfits: generateSmartOutfits(items, preferences.occasion || 'casual', preferences.weather || 'mild', preferences.style || 'comfortable'),
         note: 'Using smart recommendations - configure GEMINI_API_KEY for AI-powered suggestions'
       });
     }
 
-    // Request deduplication for performance
-    const requestFingerprint = createRequestFingerprint(requestData);
-    
-    // Check if we have a pending identical request
-    if (pendingRequests.has(requestFingerprint)) {
-      console.log('🔄 Deduplicating identical request');
-      const existingResponse = await pendingRequests.get(requestFingerprint)!;
-      return res.status(200).json(existingResponse);
-    }
-
-    // Check rate limit after deduplication
+    // Check rate limit
     if (!checkRateLimit()) {
       return res.status(429).json({
         success: false,
@@ -128,73 +112,89 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Create and cache the request promise
-    const requestPromise = processOutfitRequest(requestData);
-    pendingRequests.set(requestFingerprint, requestPromise);
-
     try {
-      const response = await requestPromise;
-      const endTime = Date.now();
-      console.log(`⚡ Outfit generation completed in ${endTime - startTime}ms`);
+      // Use the caching endpoint instead of direct Gemini API call
+      const cacheResponse = await fetch(new URL('/api/get-cached-suggestions', process.env.VERCEL_URL || 'http://localhost:3000'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId,
+          items,
+          context: {
+            ...preferences,
+            style_inspiration: userProfile.style_inspiration,
+            lifestyle: userProfile.lifestyle
+          },
+          promptType: 'outfit-generation',
+          forceRefresh: bypassCache
+        })
+      });
+
+      if (!cacheResponse.ok) {
+        throw new Error(`Cache service error: ${cacheResponse.status} ${await cacheResponse.text()}`);
+      }
+
+      const cacheResult = await cacheResponse.json();
       
-      return res.status(200).json(response);
-    } finally {
-      // Clean up pending request
-      setTimeout(() => pendingRequests.delete(requestFingerprint), 1000);
+      if (!cacheResult.success) {
+        throw new Error(`Cache service error: ${cacheResult.error}`);
+      }
+
+      // Process the cached result
+      let outfits;
+      
+      if (cacheResult.data && Array.isArray(cacheResult.data)) {
+        // Direct array response
+        outfits = cacheResult.data;
+      } else if (cacheResult.data && cacheResult.data.rawResponse) {
+        // Text response that needs parsing
+        try {
+          const jsonMatch = cacheResult.data.rawResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            outfits = [parsed]; // Wrap in array if single outfit
+          } else {
+            throw new Error('No valid JSON in response');
+          }
+        } catch (parseError) {
+          console.error('Failed to parse cached response:', parseError);
+          throw new Error('Invalid response format from cache');
+        }
+      } else {
+        // Direct object response
+        outfits = [cacheResult.data]; // Wrap in array if single outfit
+      }
+
+      const endTime = Date.now();
+      console.log(`⚡ Outfit generation ${cacheResult.cached ? 'from cache' : 'fresh'} completed in ${endTime - startTime}ms`);
+
+      return res.status(200).json({
+        success: true,
+        outfits,
+        cached: cacheResult.cached
+      });
+
+    } catch (error) {
+      console.error('Error using cache service:', error);
+      
+      // Fallback to smart recommendations
+      return res.status(200).json({
+        success: true,
+        outfits: generateSmartOutfits(items, preferences.occasion || 'casual', preferences.weather || 'mild', preferences.style || 'comfortable'),
+        note: 'Using fallback recommendations due to service unavailability'
+      });
     }
 
   } catch (error) {
     const endTime = Date.now();
     console.error(`❌ Outfit generation failed in ${endTime - startTime}ms:`, error);
     
-    // Fallback outfits if everything fails
-    const fallbackOutfits = generateFallbackOutfits(req.body);
-    
-    return res.status(200).json({
-      success: true,
-      outfits: fallbackOutfits,
-      note: 'Using fallback recommendations due to service unavailability'
+    return res.status(500).json({
+      success: false,
+      error: `Internal server error: ${error.message}`
     });
-  }
-}
-
-// Process outfit request with optimized flow
-async function processOutfitRequest(requestData: OutfitRequest): Promise<OutfitResponse> {
-  const { items, preferences = {}, userProfile = {} } = requestData;
-  
-  const occasion = preferences.occasion || userProfile.lifestyle || 'casual';
-  const weather = preferences.weather || 'mild';
-  const style = preferences.style || userProfile.style_inspiration || 'comfortable';
-
-  try {
-    console.log(`🤖 Generating optimized outfit: ${occasion}/${weather}/${style} with ${items.length} items`);
-    
-    const prompt = buildOutfitGenerationPrompt(items, occasion, weather, style);
-    const aiResponse = await generateWithGemini(prompt, {
-      temperature: 0.8,
-      maxOutputTokens: 1500,
-      useCache: true // Enable caching for better performance
-    });
-    
-    // Parse and validate the AI response
-    const outfits = parseGeminiOutfitResponse(aiResponse, items, occasion, weather, style);
-    
-    return {
-      success: true,
-      outfits
-    };
-    
-  } catch (error) {
-    console.log('🔄 AI generation failed, using intelligent fallback');
-    
-    // Use enhanced smart generation as fallback
-    const outfits = generateSmartOutfits(items, occasion, weather, style);
-    
-    return {
-      success: true,
-      outfits,
-      note: 'Generated using advanced styling algorithms'
-    };
   }
 }
 

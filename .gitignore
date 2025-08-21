@@ -26,24 +26,27 @@ dist-ssr
 .cursor/
 .kilocode/
 .config/
+.trae/
 
 # Environment files (real secrets)
-.env
-.env.*
 .env.local
-.env.development
-.env.test
-.env.production
+.env.development.local
+.env.test.local
+.env.production.local
 
-# But keep example files
+# Keep template/example files
 !.env.example
+!.env
 
 # Server environment files (real secrets)
-server/.env
-server/.env.*
+server/.env.local
+server/.env.development.local
+server/.env.test.local
+server/.env.production.local
 
 # But keep server example files
 !server/.env.example
+!server/.env
 
 # Test and debug files
 test-*.js
@@ -73,16 +76,9 @@ package-lock.json
 yarn.lock
 
 .vercel
-CACHING-SYSTEM.md
 cleanup-old-cache.sql
 configure-cron-jobs.sql
-ENVIRONMENT-SETUP.md
 fix-cleanup-functions.sql
 fix-existing-policies.sql
 gemini-cache-schema.sql
-IMPLEMENTATION-GUIDE.md
-IMPLEMENTATION-TUTORIAL.md
-manual-cleanup-solution.md
 setup-caching-system.sql
-.github/copilot-instructions.md
-api/caching-integration.md

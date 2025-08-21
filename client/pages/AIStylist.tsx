@@ -201,6 +201,7 @@ export default function AIStylist() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          userId: user.id, // Add userId for caching system
           items: clothingItems,
           preferences: preferences,
           userProfile: {
@@ -264,6 +265,7 @@ export default function AIStylist() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          userId: user.id, // Add userId for caching system
           wardrobe: clothingItems,
           preferences: preferences
         })
