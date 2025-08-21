@@ -142,8 +142,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? "http://localhost:8080"
         : "http://localhost:3000";
       
+      const cacheUrl = `${baseUrl}/api/get-cached-suggestions`;
+      
       const cacheResponse = await fetch(
-        new URL("/api/get-cached-suggestions", baseUrl),
+        cacheUrl,
         {
           method: "POST",
           headers: {

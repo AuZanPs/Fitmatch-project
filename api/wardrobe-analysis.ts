@@ -168,11 +168,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
       // Use the enhanced caching service with structured output
+      const baseUrl = process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}`
+        : process.env.NODE_ENV === 'development'
+        ? "http://localhost:8080"
+        : "http://localhost:3000";
+      
+      const cacheUrl = `${baseUrl}/api/get-cached-suggestions`;
+      
       const cacheResponse = await fetch(
-        new URL(
-          "/api/get-cached-suggestions",
-          process.env.VERCEL_URL || "http://localhost:3000",
-        ),
+        cacheUrl,
         {
           method: "POST",
           headers: {

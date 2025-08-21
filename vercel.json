@@ -2,12 +2,22 @@
   "version": 2,
   "functions": {
     "api/cache-maintenance.ts": {
-      "memory": 1024,
       "maxDuration": 30
     },
     "api/get-cached-suggestions.ts": {
-      "memory": 1024,
       "maxDuration": 10
+    },
+    "api/generate-outfits.ts": {
+      "maxDuration": 15
+    },
+    "api/analyze-item.ts": {
+      "maxDuration": 10
+    },
+    "api/wardrobe-analysis.ts": {
+      "maxDuration": 15
+    },
+    "api/health.ts": {
+      "maxDuration": 5
     }
   },
   "crons": [

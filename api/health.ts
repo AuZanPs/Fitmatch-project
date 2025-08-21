@@ -27,10 +27,29 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
     version: "1.0.0",
-    gemini: {
-      configured: !!process.env.GEMINI_API_KEY,
-      keyLength: process.env.GEMINI_API_KEY?.length || 0,
-      keyPrefix: process.env.GEMINI_API_KEY?.substring(0, 5) || "none",
+    services: {
+      gemini: {
+        configured: !!process.env.GEMINI_API_KEY,
+        keyLength: process.env.GEMINI_API_KEY?.length || 0,
+        keyPrefix: process.env.GEMINI_API_KEY?.substring(0, 5) || "none",
+      },
+      supabase: {
+        url_configured: !!process.env.SUPABASE_URL,
+        service_key_configured: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        url_prefix: process.env.SUPABASE_URL?.substring(0, 20) || "none",
+      },
+      vercel: {
+        url_configured: !!process.env.VERCEL_URL,
+        url: process.env.VERCEL_URL || "none",
+      },
+      maintenance: {
+        secret_configured: !!process.env.MAINTENANCE_SECRET_KEY,
+      },
+    },
+    deployment_info: {
+      vercel_url: process.env.VERCEL_URL,
+      node_env: process.env.NODE_ENV,
+      region: process.env.VERCEL_REGION || "unknown",
     },
   });
 }
