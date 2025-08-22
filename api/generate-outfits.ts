@@ -131,6 +131,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       const aiResponse = await generateWithGemini(prompt);
       
+      // Debug: Log the raw Gemini response
+      // Log raw response for debugging if needed
+    // console.log('=== RAW GEMINI RESPONSE ===', aiResponse);
+      
       // Parse and validate AI response
       const outfits = parseGeminiOutfitResponse(
         aiResponse,
@@ -199,7 +203,17 @@ function parseGeminiOutfitResponse(
     const parsedResponse = JSON.parse(jsonMatch[0]);
 
     // Enhanced item matching using ITEM_ID system
-    const matchedItems = matchItemsByID(parsedResponse.items || [], items);
+    // Extract item IDs from the response (handle both string arrays and object arrays)
+    const itemIds = (parsedResponse.items || []).map((item: any) => {
+      if (typeof item === 'string') {
+        return item;
+      }
+      // If it's an object, try to extract the ID or convert to string
+      return item.id || item.item_id || JSON.stringify(item);
+    }).filter(id => typeof id === 'string'); // Ensure all IDs are strings
+    
+    // Debug: console.log('Extracted item IDs:', itemIds);
+    const matchedItems = matchItemsByID(itemIds, items);
 
     // Validate we have a reasonable outfit
     if (matchedItems.length < 2) {

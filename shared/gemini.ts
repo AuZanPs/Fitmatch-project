@@ -129,8 +129,7 @@ export const buildOutfitGenerationPrompt = (
   // Build style preferences based on existing style tags
   const stylePreferences = extractStylePreferences(items, style);
 
-  return buildFashionPrompt(
-    `Create a cohesive outfit combination from the user's wardrobe for a ${occasion} occasion in ${weather} weather with a ${style} aesthetic.
+  const basePrompt = `Create a cohesive outfit combination from the user's wardrobe for a ${occasion} occasion in ${weather} weather with a ${style} aesthetic.
 
 **WARDROBE ANALYSIS:**
 - Total items: ${items.length}
@@ -147,14 +146,23 @@ ${wardrobeDescription}
 4. Match the occasion and weather requirements
 5. Prioritize items with matching style tags
 
-Create outfits that are appropriate for the occasion, suitable for the weather, and match the requested style preference. Consider color coordination, seasonal appropriateness, and practical styling.`,
-    {
-      wardrobe: items,
-      occasion,
-      weather,
-      style,
-    },
-  );
+**REQUIRED JSON RESPONSE FORMAT:**
+Respond with ONLY a valid JSON object in this exact format:
+{
+  "name": "Outfit name",
+  "description": "Brief description",
+  "items": ["ITEM_1", "ITEM_2", "ITEM_3"],
+  "reasoning": "Why this combination works",
+  "styling_tips": ["tip1", "tip2"],
+  "color_analysis": "Color coordination explanation",
+  "trend_insights": "Fashion trend relevance"
+}
+
+IMPORTANT: Use ONLY the ITEM_ID references (like ITEM_1, ITEM_2) in the items array, NOT full item objects.
+
+IMPORTANT: Return ONLY the JSON object, no additional text or formatting.`;
+
+  return basePrompt;
 };
 
 // Helper function to categorize items for outfit creation

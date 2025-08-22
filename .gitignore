@@ -26,7 +26,6 @@ dist-ssr
 .cursor/
 .kilocode/
 .config/
-.trae/
 
 # Environment files (real secrets)
 .env.local
@@ -36,7 +35,7 @@ dist-ssr
 
 # Keep template/example files
 !.env.example
-!.env
+.env
 
 # Server environment files (real secrets)
 server/.env.local
