@@ -135,7 +135,7 @@ export default function Upload() {
         color || undefined,
       );
 
-      toast.success("Clothing item added successfully! 🎉");
+      toast.success("Clothing item added successfully!");
 
       // Small delay to show success before navigation
       setTimeout(() => {

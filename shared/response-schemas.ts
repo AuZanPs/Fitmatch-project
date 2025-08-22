@@ -160,14 +160,14 @@ export function validateAIResponse(
     }
 
     if (validationResult.success) {
-      console.log(`✅ Response validation successful for ${promptType}`);
+      console.log(`Response validation successful for ${promptType}`);
       return {
         success: true,
         data: validationResult.data,
       };
     } else {
       console.warn(
-        `⚠️ Response validation failed for ${promptType}:`,
+        `Response validation failed for ${promptType}:`,
         validationResult.error.issues,
       );
 

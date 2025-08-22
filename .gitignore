@@ -80,8 +80,7 @@ yarn.lock
 # SQL migration and setup files
 *.sql
 
-# Documentation files
-*.md
+
 
 # Environment files (already covered above but being explicit)
 .env

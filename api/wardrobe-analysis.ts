@@ -141,7 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Check API key and generate analysis
     if (!isGeminiConfigured()) {
-      console.log("⚠️ Gemini not configured, using smart fallback");
+      console.log("Gemini not configured, using smart fallback");
 
       return res.status(200).json({
         success: true,
@@ -154,7 +154,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const analysis = generateSmartAnalysis(wardrobe, preferences, style_goal);
     
     const endTime = Date.now();
-    console.log(`⚡ Wardrobe analysis completed in ${endTime - startTime}ms`);
+    console.log(`Wardrobe analysis completed in ${endTime - startTime}ms`);
 
     return res.status(200).json({
       success: true,

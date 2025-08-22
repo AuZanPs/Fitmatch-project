@@ -38,7 +38,7 @@ export const generateWithGemini = async (
     const text = response.text();
 
     const endTime = Date.now();
-    console.log(`✅ Gemini response generated in ${endTime - startTime}ms`);
+    console.log(`Gemini response generated in ${endTime - startTime}ms`);
 
     return text;
   } catch (error: any) {
@@ -49,7 +49,7 @@ export const generateWithGemini = async (
   }
 };
 
-// Note: Caching is now handled by the context-aware cache system
+
 
 // Check if Gemini is properly configured
 export const isGeminiConfigured = (): boolean => {

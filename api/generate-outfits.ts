@@ -96,7 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Check API key
     if (!isGeminiConfigured()) {
-      console.log("⚠️ Gemini not configured, using smart fallback");
+      console.log("Gemini not configured, using smart fallback");
 
       return res.status(200).json({
         success: true,
@@ -129,7 +129,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     const endTime = Date.now();
-    console.log(`⚡ Outfit generation completed in ${endTime - startTime}ms`);
+    console.log(`Outfit generation completed in ${endTime - startTime}ms`);
 
     return res.status(200).json({
       success: true,
@@ -138,7 +138,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     const endTime = Date.now();
     console.error(
-      `❌ Outfit generation failed in ${endTime - startTime}ms:`,
+      `Outfit generation failed in ${endTime - startTime}ms:`,
       error,
     );
 
