@@ -3,7 +3,7 @@ import {
   validateAIResponse,
   STRUCTURED_PROMPT_TEMPLATES,
 } from "../shared/response-schemas.js";
-import { generateWithGemini, buildFashionPrompt } from "../shared/gemini.js";
+import { generateWithGemini, buildFashionPrompt } from "../shared/gemini.ts";
 
 // Rate limiting helper (stay within free tier)
 let requestCount = 0;
@@ -62,12 +62,15 @@ async function analyzeClothingWithGemini(
 async function analyzeWithGeminiVision(imageUrl: string, itemData: any): Promise<any> {
   try {
     const prompt = buildFashionPrompt(
-      `Analyze this clothing item image and provide detailed categorization including:
-      - Main category (shirt, pants, dress, etc.)
-      - Style characteristics
-      - Color analysis
-      - Material suggestions
-      - Occasion suitability`,
+      `Analyze this clothing item image and provide detailed categorization. Focus on:
+      - Accurate category identification
+      - Style characteristics and tags
+      - Primary color identification
+      - Versatility assessment
+      - Styling and pairing suggestions
+      - Occasion suitability
+      
+      Image URL: ${imageUrl}`,
       { wardrobe: [itemData] }
     ) + STRUCTURED_PROMPT_TEMPLATES.item_analysis;
 
@@ -89,13 +92,15 @@ async function analyzeWithGeminiVision(imageUrl: string, itemData: any): Promise
 async function analyzeStyleWithGemini(itemData: any): Promise<any> {
   try {
     const prompt = buildFashionPrompt(
-      `Analyze the style characteristics of this clothing item:
-      - Fashion style (casual, formal, trendy, classic, etc.)
-      - Versatility score
-      - Styling suggestions
-      - Complementary items`,
+      `Analyze the style characteristics of this ${itemData.category} item:
+      - Fashion style classification and tags
+      - Color identification
+      - Versatility assessment (0-10 scale)
+      - Specific styling suggestions
+      - Pairing recommendations
+      - Occasion suitability`,
       { wardrobe: [itemData] }
-    );
+    ) + STRUCTURED_PROMPT_TEMPLATES.item_analysis;
 
     const styleAnalysis = await generateWithGemini(prompt, {
       temperature: 0.4,
@@ -150,56 +155,32 @@ function combineAnalysisResults(
   // Determine category from vision analysis
   const category = visionData && visionData.analysis
     ? extractCategoryFromGemini(visionData.analysis)
-    : itemData.category || "Other";
+    : itemData.category || "clothing";
 
   // Extract style features from style analysis
   const styleFeatures = styleData && styleData.styleAnalysis
     ? extractStyleFromGemini(styleData.styleAnalysis)
-    : ["casual"];
+    : ["classic", "versatile"];
 
   // Calculate confidence based on successful analyses
   const successCount = [visionResult, styleResult, detailResult].filter(
     (r) => r.status === "fulfilled",
   ).length;
   const baseConfidence = (successCount / 3) * 0.6 + 0.3; // 0.3 to 0.9 range
+  
+  // Extract color from item data or use neutral
+  const primaryColor = itemData.color || "neutral";
 
   return {
-    item_assessment: {
-      style_classification: `${category} with ${styleFeatures.join(", ")} characteristics`,
-      quality_score: Math.round(baseConfidence * 10),
-      versatility_rating: calculateVersatility(category, ["black", "white"]),
-      value_assessment: baseConfidence > 0.7 ? "excellent" : "good",
-      key_features: [
-        "AI-analyzed styling",
-        "Professional assessment",
-        "Style-conscious choice",
-        ...styleFeatures.slice(0, 2),
-      ],
-    },
-    styling_potential: {
-      styling_suggestions: generateStylingSuggestions(category, [
-        "black",
-        "white",
-      ]),
-      best_occasions: getBestOccasions(category),
-      seasonal_use: getSeasonalUse(category),
-      pairing_items: getPairingItems(category, ["black", "white"]),
-    },
-    wardrobe_integration: {
-      essential_complements: getEssentialComplements(category),
-      color_combinations: ["white", "black", "navy", "gray"],
-      style_personalities: getStylePersonalities(category),
-      wardrobe_gap_filled: `Essential ${category.toLowerCase()} piece analyzed with AI`,
-    },
-    care_longevity: {
-      care_instructions: getCareInstructions(category),
-      expected_lifespan: "Several years with proper care",
-      maintenance_tips: getMaintenanceTips(category),
-    },
-    overall_rating: Math.round(baseConfidence * 10),
-    confidence_score: Math.round(baseConfidence * 10),
-    styling_confidence: Math.round(baseConfidence * 10),
-    purchase_recommendation: baseConfidence > 0.6 ? "buy" : "consider",
+    category: category,
+    style_tags: styleFeatures,
+    color: primaryColor,
+    versatility_score: calculateVersatility(category, [primaryColor]),
+    styling_suggestions: generateStylingSuggestions(category, [primaryColor]),
+    pairing_recommendations: getPairingItems(category, [primaryColor]),
+    occasion_suitability: getBestOccasions(category),
+    care_instructions: getCareInstructions(category),
+    confidence: baseConfidence,
   };
 }
 
@@ -238,42 +219,18 @@ function extractStyleFromGemini(analysis: string): string[] {
 // Generate fallback analysis
 function createFallbackAnalysis(itemData: any): any {
   const category = itemData.category || "Other";
+  const color = itemData.color || "neutral";
+  
   return {
-    item_assessment: {
-      style_classification: `${category} with classic styling`,
-      quality_score: 7,
-      versatility_rating: "high",
-      value_assessment: "good",
-      key_features: [
-        "Classic design",
-        "Versatile piece",
-        "Quality construction",
-      ],
-    },
-    styling_potential: {
-      styling_suggestions: generateStylingSuggestions(category, [
-        "black",
-        "white",
-      ]),
-      best_occasions: getBestOccasions(category),
-      seasonal_use: "year-round",
-      pairing_items: getPairingItems(category, ["black", "white"]),
-    },
-    wardrobe_integration: {
-      essential_complements: getEssentialComplements(category),
-      color_combinations: ["white", "black", "navy"],
-      style_personalities: ["classic", "versatile"],
-      wardrobe_gap_filled: `Essential ${category.toLowerCase()} piece`,
-    },
-    care_longevity: {
-      care_instructions: getCareInstructions(category),
-      expected_lifespan: "Several years with proper care",
-      maintenance_tips: getMaintenanceTips(category),
-    },
-    overall_rating: 7,
-    confidence_score: 7,
-    styling_confidence: 7,
-    purchase_recommendation: "consider",
+    category: category,
+    style_tags: ["classic", "versatile", "essential"],
+    color: color,
+    versatility_score: 7,
+    styling_suggestions: generateStylingSuggestions(category, [color]),
+    pairing_recommendations: getPairingItems(category, [color]),
+    occasion_suitability: getBestOccasions(category),
+    care_instructions: getCareInstructions(category),
+    confidence: 0.7,
   };
 }
 
@@ -284,15 +241,8 @@ async function createAnalysisWithGemini(
   context: string = "",
 ): Promise<any> {
   try {
-    // Build a comprehensive prompt for item analysis
-    const basePrompt = `Provide a comprehensive analysis of this ${itemData.category} item. Include:
-      - Style classification and quality assessment
-      - Versatility rating and value assessment
-      - Key features and styling potential
-      - Best occasions and seasonal use
-      - Pairing suggestions and wardrobe integration
-      - Care instructions and longevity expectations
-      - Overall rating and purchase recommendation
+    // Build a comprehensive prompt for item analysis using the structured template
+    const basePrompt = `Analyze this ${itemData.category} clothing item and provide detailed insights.
       
       Item details:
       - Category: ${itemData.category}
@@ -308,13 +258,13 @@ async function createAnalysisWithGemini(
       
       Context: ${context || "General item analysis"}
       
-      Return the analysis in the exact JSON format specified in the schema.`;
+      Provide specific styling suggestions, pairing recommendations, and occasion suitability based on the item details and user profile.`;
 
     const analysisPrompt = buildFashionPrompt(basePrompt, {
       wardrobe: [itemData],
       style: userProfile.style_preferences?.join(", ") || "versatile",
       preferences: userProfile,
-    });
+    }) + STRUCTURED_PROMPT_TEMPLATES.item_analysis;
 
     const response = await generateWithGemini(analysisPrompt, {
       temperature: 0.7,
@@ -348,44 +298,18 @@ function createAnalysisFromDescription(
   const colors = extractColors(desc);
   const category = extractCategory(desc, itemData.category);
   const styleFeatures = extractStyleFeatures(desc);
+  const primaryColor = colors.length > 0 ? colors[0] : itemData.color || "neutral";
 
   return {
-    item_assessment: {
-      style_classification: `${category} with ${styleFeatures.join(", ")} features`,
-      quality_score: 8, // Default good quality
-      versatility_rating: calculateVersatility(category, colors),
-      value_assessment: "good",
-      key_features: [
-        "Versatile styling options",
-        "Quality construction",
-        "Wardrobe essential",
-        ...styleFeatures.slice(0, 2),
-      ],
-    },
-    styling_potential: {
-      styling_suggestions: generateStylingSuggestions(category, colors),
-      best_occasions: getBestOccasions(category),
-      seasonal_use: getSeasonalUse(category),
-      pairing_items: getPairingItems(category, colors),
-    },
-    wardrobe_integration: {
-      essential_complements: getEssentialComplements(category),
-      color_combinations:
-        colors.length > 0
-          ? colors.concat(["white", "black"])
-          : ["white", "black", "navy"],
-      style_personalities: getStylePersonalities(category),
-      wardrobe_gap_filled: `Adds essential ${category.toLowerCase()} piece to wardrobe`,
-    },
-    care_longevity: {
-      care_instructions: getCareInstructions(category),
-      expected_lifespan: "Several years with proper care",
-      maintenance_tips: getMaintenanceTips(category),
-    },
-    overall_rating: 8,
-    confidence_score: 8,
-    styling_confidence: 8,
-    purchase_recommendation: "buy",
+    category: category,
+    style_tags: styleFeatures.length > 0 ? styleFeatures : ["classic", "versatile"],
+    color: primaryColor,
+    versatility_score: calculateVersatility(category, colors),
+    styling_suggestions: generateStylingSuggestions(category, colors),
+    pairing_recommendations: getPairingItems(category, colors),
+    occasion_suitability: getBestOccasions(category),
+    care_instructions: getCareInstructions(category),
+    confidence: 0.8,
   };
 }
 

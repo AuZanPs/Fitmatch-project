@@ -1,5 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { isGeminiConfigured } from "../shared/gemini.js";
+import { 
+  isGeminiConfigured, 
+  generateWithGemini,
+  buildWardrobeAnalysisPrompt 
+} from "../shared/gemini.js";
 import {
   validateAIResponse,
   STRUCTURED_PROMPT_TEMPLATES,
@@ -150,16 +154,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Generate analysis directly
-    const analysis = generateSmartAnalysis(wardrobe, preferences, style_goal);
-    
-    const endTime = Date.now();
-    console.log(`Wardrobe analysis completed in ${endTime - startTime}ms`);
-
-    return res.status(200).json({
-      success: true,
-      analysis,
-    });
+    // Generate analysis using Gemini AI
+    try {
+      const prompt = buildWardrobeAnalysisPrompt(
+        wardrobe,
+        {
+          ...preferences,
+          analysis_type,
+          style_goal,
+          budget
+        }
+      );
+      
+      const aiResponse = await generateWithGemini(prompt);
+      
+      // Parse and validate AI response
+      const analysis = parseGeminiAnalysisResponse(aiResponse, wardrobe);
+      
+      const endTime = Date.now();
+      console.log(`Wardrobe analysis completed in ${endTime - startTime}ms`);
+      
+      return res.status(200).json({
+        success: true,
+        analysis,
+      });
+    } catch (geminiError) {
+      console.warn("Gemini failed, using smart fallback:", geminiError);
+      
+      // Fallback to smart analysis
+      const analysis = generateSmartAnalysis(wardrobe, preferences, style_goal);
+      
+      const endTime = Date.now();
+      console.log(`Wardrobe analysis completed with fallback in ${endTime - startTime}ms`);
+      
+      return res.status(200).json({
+        success: true,
+        analysis,
+        note: "Using smart analysis due to AI service unavailability",
+      });
+    }
   } catch (error) {
     console.error("Wardrobe analysis error:", error);
 

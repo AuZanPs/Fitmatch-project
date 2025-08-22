@@ -120,21 +120,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Generate outfits using smart recommendations
-    const outfits = generateSmartOutfits(
-      items,
-      preferences.occasion || "casual",
-      preferences.weather || "mild",
-      preferences.style || "comfortable",
-    );
-
-    const endTime = Date.now();
-    console.log(`Outfit generation completed in ${endTime - startTime}ms`);
-
-    return res.status(200).json({
-      success: true,
-      outfits,
-    });
+    // Generate outfits using Gemini AI
+    try {
+      const prompt = buildOutfitGenerationPrompt(
+        items,
+        preferences.occasion || "casual",
+        preferences.weather || "mild",
+        preferences.style || "comfortable"
+      );
+      
+      const aiResponse = await generateWithGemini(prompt);
+      
+      // Parse and validate AI response
+      const outfits = parseGeminiOutfitResponse(
+        aiResponse,
+        items,
+        preferences.occasion || "casual",
+        preferences.weather || "mild",
+        preferences.style || "comfortable"
+      );
+      
+      const endTime = Date.now();
+      console.log(`Outfit generation completed in ${endTime - startTime}ms`);
+      
+      return res.status(200).json({
+        success: true,
+        outfits,
+      });
+    } catch (geminiError) {
+      console.warn("Gemini failed, using smart fallback:", geminiError);
+      
+      // Fallback to smart recommendations
+      const outfits = generateSmartOutfits(
+        items,
+        preferences.occasion || "casual",
+        preferences.weather || "mild",
+        preferences.style || "comfortable",
+      );
+      
+      const endTime = Date.now();
+      console.log(`Outfit generation completed with fallback in ${endTime - startTime}ms`);
+      
+      return res.status(200).json({
+        success: true,
+        outfits,
+        note: "Using smart recommendations due to AI service unavailability",
+      });
+    }
   } catch (error) {
     const endTime = Date.now();
     console.error(
