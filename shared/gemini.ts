@@ -147,7 +147,7 @@ ${wardrobeDescription}
 5. Prioritize items with matching style tags
 
 **REQUIRED JSON RESPONSE FORMAT:**
-Respond with ONLY a valid JSON object in this exact format:
+Please provide your response as a JSON object with this structure:
 {
   "name": "Outfit name",
   "description": "Brief description",
@@ -160,7 +160,7 @@ Respond with ONLY a valid JSON object in this exact format:
 
 IMPORTANT: Use ONLY the ITEM_ID references (like ITEM_1, ITEM_2) in the items array, NOT full item objects.
 
-IMPORTANT: Return ONLY the JSON object, no additional text or formatting.`;
+You may include brief explanatory text before or after the JSON, but ensure the JSON object is clearly identifiable.`;
 
   return basePrompt;
 };

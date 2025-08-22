@@ -197,8 +197,19 @@ function parseGeminiOutfitResponse(
   style: string,
 ) {
   try {
-    // Try to extract JSON from the response
-    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+    // Try to extract JSON from the response with more flexible pattern
+    let jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+    
+    // If no match, try to find JSON within text
+    if (!jsonMatch) {
+      // Look for JSON patterns more aggressively
+      const jsonStart = aiResponse.indexOf('{');
+      const jsonEnd = aiResponse.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        jsonMatch = [aiResponse.substring(jsonStart, jsonEnd + 1)];
+      }
+    }
+    
     if (!jsonMatch) {
       throw new Error("No JSON found in response");
     }
