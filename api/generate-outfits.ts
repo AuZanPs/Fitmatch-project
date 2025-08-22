@@ -1,4 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import dotenv from "dotenv";
+dotenv.config();
+
 import {
   generateWithGemini,
   buildOutfitGenerationPrompt,

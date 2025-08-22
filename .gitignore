@@ -28,6 +28,7 @@ dist-ssr
 .config/
 
 # Environment files (real secrets)
+.env
 .env.local
 .env.development.local
 .env.test.local
@@ -35,9 +36,9 @@ dist-ssr
 
 # Keep template/example files
 !.env.example
-.env
 
 # Server environment files (real secrets)
+server/.env
 server/.env.local
 server/.env.development.local
 server/.env.test.local
@@ -45,7 +46,6 @@ server/.env.production.local
 
 # But keep server example files
 !server/.env.example
-!server/.env
 
 # Test and debug files
 test-*.js
@@ -82,4 +82,4 @@ yarn.lock
 
 
 # Environment files (already covered above but being explicit)
-.env
+# .env files are already ignored above

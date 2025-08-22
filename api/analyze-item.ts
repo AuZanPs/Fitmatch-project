@@ -1,9 +1,12 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
+import dotenv from "dotenv";
+dotenv.config();
+
 import {
   validateAIResponse,
   STRUCTURED_PROMPT_TEMPLATES,
 } from "../shared/response-schemas.js";
-import { generateWithGemini, buildFashionPrompt } from "../shared/gemini.ts";
+import { generateWithGemini, buildFashionPrompt } from "../shared/gemini.js";
 
 // Rate limiting helper (stay within free tier)
 let requestCount = 0;
