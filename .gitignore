@@ -1,3 +1,9 @@
+# Dependencies and modules
+node_modules
+dist
+dist-ssr
+*.local
+
 # Logs
 logs
 *.log
@@ -7,10 +13,15 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Environment files (contain sensitive data)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Keep template/example files
+!.env.example
 
 # Editor directories and files
 .vscode/
@@ -22,34 +33,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
 .cursor/
 .kilocode/
-.config/
 
-# Environment files (real secrets)
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Keep template/example files
-!.env.example
-
-# Server environment files (real secrets)
-server/.env
-server/.env.local
-server/.env.development.local
-server/.env.test.local
-server/.env.production.local
-
-# But keep server example files
-!server/.env.example
-
-# Test and debug files
-test-*.js
-debug-*.js
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
 
 # Backup and temporary files
 *.backup
@@ -60,26 +51,11 @@ debug-*.js
 *.swp
 *.swo
 
-# OS generated files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Build tools and development directories
-.builder/
-.temp/
+# Build and deployment
+.vercel
 .cache/
+.temp/
 
-# Package manager duplicates (when using pnpm)
+# Package manager lock files (optional - remove if you want to track them)
 package-lock.json
 yarn.lock
-
-.vercel
-
-# SQL migration and setup files
-*.sql
-
-
-
-# Environment files (already covered above but being explicit)
-# .env files are already ignored above

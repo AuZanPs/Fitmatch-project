@@ -1,0 +1,13 @@
+# Files to exclude from Vercel deployment
+.env
+.env.local
+.env.*.local
+*.sql
+CONTRIBUTING.md
+LICENSE
+README.md
+.git/
+.github/
+node_modules/
+.vscode/
+backup-server/
