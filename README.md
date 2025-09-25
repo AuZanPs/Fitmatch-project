@@ -1,3 +1,9 @@
+## Live Demo
+
+**Production URL**: [fitmatch-project-silk.vercel.app](https://fitmatch-project-silk.vercel.app)
+
+> **Note**: This is a portfolio/resume project demonstrating full-stack AI integration skills
+
 # FitMatch - AI-Powered Fashion Assistant
 
 A **resume/portfolio project** showcasing modern full-stack development with AI integration. FitMatch is an intelligent wardrobe management application that uses Google Gemini AI to create personalized outfit recommendations from users' existing clothing items.
@@ -10,12 +16,6 @@ A **resume/portfolio project** showcasing modern full-stack development with AI 
 - Style preferences customization (occasion, weather, style)
 - Comprehensive wardrobe analysis with gap detection
 - Real-time outfit recommendations with styling tips
-
-## Live Demo
-
-**Production URL**: [fitmatch-project-silk.vercel.app](https://fitmatch-project-silk.vercel.app)
-
-> **Note**: This is a portfolio/resume project demonstrating full-stack AI integration skills
 
 ## Project Highlights (September 2025)
 
